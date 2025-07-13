@@ -21,19 +21,17 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/" element={
             <ProtectedRoute>
-              <Layout>
-                <Routes>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/companies" element={<Companies />} />
-                  <Route path="/products" element={<Products />} />
-                  <Route path="/customers" element={<Customers />} />
-                  <Route path="/orders/new" element={<NewOrder />} />
-                  <Route path="/orders" element={<Orders />} />
-                  <Route path="/" element={<Navigate to="/dashboard" />} />
-                </Routes>
-              </Layout>
+              <Layout />
             </ProtectedRoute>
-          } />
+          }>
+            <Route index element={<Navigate to="/dashboard" />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="companies" element={<Companies />} />
+            <Route path="products" element={<Products />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="orders/new" element={<NewOrder />} />
+            <Route path="orders" element={<Orders />} />
+          </Route>
         </Routes>
       </Router>
     </AuthProvider>

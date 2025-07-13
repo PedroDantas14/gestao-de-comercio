@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
   Menu,
   X,
@@ -14,11 +14,10 @@ import {
   User
 } from 'lucide-react';
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
+// Não precisamos mais da prop children com o Outlet
+interface LayoutProps {}
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Layout: React.FC<LayoutProps> = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -118,7 +117,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Page content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
           <div className="container mx-auto px-4 py-8">
-            {children}
+            <Outlet />
           </div>
         </main>
       </div>
