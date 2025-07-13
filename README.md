@@ -64,34 +64,6 @@ Uma aplicação completa de gestão comercial desenvolvida em React com TypeScri
 - **TypeScript interfaces** - Tipagem forte dos dados
 - **Responsive design** - Compatibilidade com dispositivos móveis
 
-## 📦 Instalação e Configuração
-
-### Pré-requisitos
-- Node.js (versão 16 ou superior)
-- npm ou yarn
-
-### Passos para instalação
-
-1. **Clone o repositório**
-   ```bash
-   git clone [url-do-repositorio]
-   cd commerceapp
-   ```
-
-2. **Instale as dependências**
-   ```bash
-   npm install
-   ```
-
-3. **Inicie o servidor de desenvolvimento**
-   ```bash
-   npm run dev
-   ```
-
-4. **Acesse a aplicação**
-   - Abra seu navegador em `http://localhost:5173`
-   - Crie uma conta ou use as credenciais de teste
-
 ## 🎨 Design e Interface
 
 ### Sistema de Cores
@@ -110,19 +82,6 @@ Uma aplicação completa de gestão comercial desenvolvida em React com TypeScri
 - **Animações suaves** em transições e hover
 - **Tipografia clara** com hierarquia bem definida
 - **Feedback visual** em todas as interações
-
-## 📱 Responsividade
-
-A aplicação é totalmente responsiva e funciona perfeitamente em:
-- **Desktop** (1024px+)
-- **Tablet** (768px - 1024px)
-- **Mobile** (< 768px)
-
-### Adaptações Mobile
-- Sidebar transformada em menu lateral
-- Tabelas com scroll horizontal
-- Formulários adaptados para telas pequenas
-- Botões e campos otimizados para toque
 
 ## 💾 Estrutura de Dados
 
@@ -212,13 +171,6 @@ interface Order {
 - Confirmação para ações destrutivas (exclusão)
 - Tratamento de erros com feedback ao usuário
 
-## 🚀 Scripts Disponíveis
-
-- `npm run dev` - Inicia o servidor de desenvolvimento
-- `npm run build` - Gera build de produção
-- `npm run preview` - Visualiza o build de produção
-- `npm run lint` - Executa verificação de código
-
 ## 🔄 Fluxo de Trabalho
 
 ### 1. Configuração Inicial
@@ -275,27 +227,3 @@ O sistema usa Tailwind CSS, permitindo fácil customização:
 - **Exportação** de dados
 - **Multi-empresa** para um usuário
 - **Permissões** de usuário avançadas
-
-## 🤝 Contribuição
-
-Para contribuir com o projeto:
-
-1. Fork o repositório
-2. Crie uma branch para sua feature
-3. Commit suas mudanças
-4. Push para a branch
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
-
-## 📞 Suporte
-
-Para suporte e dúvidas:
-- Abra uma issue no GitHub
-- Entre em contato através do email do projeto
-
----
-
-**CommerceApp** - Sua solução completa para gestão comercial moderna e eficiente.
