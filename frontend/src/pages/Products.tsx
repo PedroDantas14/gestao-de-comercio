@@ -2,21 +2,19 @@ import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { Product, Company } from '../types';
+import { Produto, Empresa } from '../types';
 import { Plus, Edit, Trash2, Package } from 'lucide-react';
 
 const Products: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [products, setProducts] = useState<Produto[]>([]);
+  const [companies, setCompanies] = useState<Empresa[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    category: '',
-    stock: '',
-    companyId: '',
+    nome: '',
+    descricao: '',
+    valor: '',
+    empresa: ''
   });
 
   useEffect(() => {
@@ -34,7 +32,7 @@ const Products: React.FC = () => {
     setCompanies(storedCompanies);
   };
 
-  const saveProducts = (updatedProducts: Product[]) => {
+  const saveProducts = (updatedProducts: Produto[]) => {
     localStorage.setItem('products', JSON.stringify(updatedProducts));
     setProducts(updatedProducts);
   };
@@ -43,27 +41,28 @@ const Products: React.FC = () => {
     e.preventDefault();
     
     if (editingProduct) {
-      const updatedProducts = products.map(product =>
-        product.id === editingProduct.id
-          ? { 
-              ...editingProduct, 
-              ...formData,
-              price: parseFloat(formData.price),
-              stock: parseInt(formData.stock)
-            }
-          : product
+      // Como não temos mais IDs, vamos usar o índice para atualizar
+      const index = products.findIndex(product => 
+        product.nome === editingProduct.nome && 
+        product.descricao === editingProduct.descricao
       );
-      saveProducts(updatedProducts);
+      
+      if (index !== -1) {
+        const updatedProducts = [...products];
+        updatedProducts[index] = { 
+          nome: formData.nome,
+          descricao: formData.descricao,
+          valor: parseFloat(formData.valor) || 0,
+          empresa: formData.empresa
+        };
+        saveProducts(updatedProducts);
+      }
     } else {
-      const newProduct: Product = {
-        id: Date.now().toString(),
-        name: formData.name,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        category: formData.category,
-        stock: parseInt(formData.stock),
-        companyId: formData.companyId,
-        createdAt: new Date().toISOString(),
+      const newProduct: Produto = {
+        nome: formData.nome,
+        descricao: formData.descricao,
+        valor: parseFloat(formData.valor) || 0,
+        empresa: formData.empresa
       };
       saveProducts([...products, newProduct]);
     }
@@ -73,41 +72,35 @@ const Products: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: '',
-      price: '',
-      category: '',
-      stock: '',
-      companyId: '',
+      nome: '',
+      descricao: '',
+      valor: '',
+      empresa: ''
     });
     setEditingProduct(null);
     setShowForm(false);
   };
 
-  const handleEdit = (product: Product) => {
+  const handleEdit = (product: Produto) => {
     setFormData({
-      name: product.name,
-      description: product.description,
-      price: product.price.toString(),
-      category: product.category,
-      stock: product.stock.toString(),
-      companyId: product.companyId,
+      nome: product.nome,
+      descricao: product.descricao,
+      valor: product.valor.toString(),
+      empresa: product.empresa
     });
     setEditingProduct(product);
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (index: number) => {
     if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-      const updatedProducts = products.filter(product => product.id !== id);
+      const updatedProducts = [...products];
+      updatedProducts.splice(index, 1);
       saveProducts(updatedProducts);
     }
   };
 
-  const getCompanyName = (companyId: string) => {
-    const company = companies.find(c => c.id === companyId);
-    return company ? company.name : 'Empresa não encontrada';
-  };
+  // Removida função getCompanyName que não é mais utilizada
 
   return (
     <div>
@@ -130,37 +123,24 @@ const Products: React.FC = () => {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Nome do Produto"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               required
             />
             <Input
-              label="Categoria"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              label="Valor (R$)"
+              type="number"
+              step="0.01"
+              value={formData.valor}
+              onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
               required
             />
             <Input
               label="Descrição"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              value={formData.descricao}
+              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
               required
               className="md:col-span-2"
-            />
-            <Input
-              label="Preço (R$)"
-              type="number"
-              step="0.01"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              required
-            />
-            <Input
-              label="Estoque"
-              type="number"
-              value={formData.stock}
-              onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-              required
             />
             
             <div className="md:col-span-2">
@@ -168,15 +148,15 @@ const Products: React.FC = () => {
                 Empresa
               </label>
               <select
-                value={formData.companyId}
-                onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
+                value={formData.empresa}
+                onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="">Selecione uma empresa</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
+                {companies.map((company, index) => (
+                  <option key={index} value={company.nomeFantasia}>
+                    {company.nomeFantasia}
                   </option>
                 ))}
               </select>
@@ -195,16 +175,16 @@ const Products: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => (
-          <Card key={product.id} className="hover:shadow-lg transition-shadow duration-200">
+        {products.map((product, index) => (
+          <Card key={index} className="hover:shadow-lg transition-shadow duration-200">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center">
                 <div className="w-10 h-10 bg-accent-100 rounded-lg flex items-center justify-center mr-3">
                   <Package className="w-5 h-5 text-accent-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{product.name}</h3>
-                  <p className="text-sm text-gray-500">{product.category}</p>
+                  <h3 className="font-semibold text-gray-900">{product.nome}</h3>
+                  <p className="text-sm text-gray-500">R$ {product.valor.toFixed(2)}</p>
                 </div>
               </div>
               <div className="flex gap-1">
@@ -218,7 +198,7 @@ const Products: React.FC = () => {
                 <Button
                   size="sm"
                   variant="danger"
-                  onClick={() => handleDelete(product.id)}
+                  onClick={() => handleDelete(index)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -226,20 +206,9 @@ const Products: React.FC = () => {
             </div>
             
             <div className="space-y-2 text-sm mb-4">
-              <p className="text-gray-600">{product.description}</p>
-              <p><span className="font-medium">Preço:</span> R$ {product.price.toFixed(2)}</p>
-              <p><span className="font-medium">Estoque:</span> {product.stock} unidades</p>
-              <p><span className="font-medium">Empresa:</span> {getCompanyName(product.companyId)}</p>
-            </div>
-            
-            <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-              product.stock > 10 
-                ? 'bg-accent-100 text-accent-800' 
-                : product.stock > 0 
-                ? 'bg-yellow-100 text-yellow-800' 
-                : 'bg-red-100 text-red-800'
-            }`}>
-              {product.stock > 10 ? 'Em estoque' : product.stock > 0 ? 'Estoque baixo' : 'Sem estoque'}
+              <p className="text-gray-600">{product.descricao}</p>
+              <p><span className="font-medium">Valor:</span> R$ {product.valor.toFixed(2)}</p>
+              <p><span className="font-medium">Empresa:</span> {product.empresa}</p>
             </div>
           </Card>
         ))}

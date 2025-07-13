@@ -2,24 +2,19 @@ import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { Customer, Company } from '../types';
+import { Cliente, Empresa } from '../types';
 import { Plus, Edit, Trash2, Users } from 'lucide-react';
 
 const Customers: React.FC = () => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [customers, setCustomers] = useState<Cliente[]>([]);
+  const [companies, setCompanies] = useState<Empresa[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<Cliente | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
+    nome: '',
     email: '',
-    phone: '',
-    cpf: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    companyId: '',
+    telefone: '',
+    empresa: ''
   });
 
   useEffect(() => {
@@ -37,7 +32,7 @@ const Customers: React.FC = () => {
     setCompanies(storedCompanies);
   };
 
-  const saveCustomers = (updatedCustomers: Customer[]) => {
+  const saveCustomers = (updatedCustomers: Cliente[]) => {
     localStorage.setItem('customers', JSON.stringify(updatedCustomers));
     setCustomers(updatedCustomers);
   };
@@ -46,17 +41,20 @@ const Customers: React.FC = () => {
     e.preventDefault();
     
     if (editingCustomer) {
-      const updatedCustomers = customers.map(customer =>
-        customer.id === editingCustomer.id
-          ? { ...editingCustomer, ...formData }
-          : customer
+      // Como não temos mais IDs, vamos usar o índice para atualizar
+      const index = customers.findIndex(customer => 
+        customer.nome === editingCustomer.nome && 
+        customer.email === editingCustomer.email
       );
-      saveCustomers(updatedCustomers);
+      
+      if (index !== -1) {
+        const updatedCustomers = [...customers];
+        updatedCustomers[index] = { ...formData };
+        saveCustomers(updatedCustomers);
+      }
     } else {
-      const newCustomer: Customer = {
-        id: Date.now().toString(),
-        ...formData,
-        createdAt: new Date().toISOString(),
+      const newCustomer: Cliente = {
+        ...formData
       };
       saveCustomers([...customers, newCustomer]);
     }
@@ -66,47 +64,35 @@ const Customers: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      name: '',
+      nome: '',
       email: '',
-      phone: '',
-      cpf: '',
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      companyId: '',
+      telefone: '',
+      empresa: ''
     });
     setEditingCustomer(null);
     setShowForm(false);
   };
 
-  const handleEdit = (customer: Customer) => {
+  const handleEdit = (customer: Cliente) => {
     setFormData({
-      name: customer.name,
+      nome: customer.nome,
       email: customer.email,
-      phone: customer.phone,
-      cpf: customer.cpf,
-      address: customer.address,
-      city: customer.city,
-      state: customer.state,
-      zipCode: customer.zipCode,
-      companyId: customer.companyId,
+      telefone: customer.telefone,
+      empresa: customer.empresa
     });
     setEditingCustomer(customer);
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (index: number) => {
     if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
-      const updatedCustomers = customers.filter(customer => customer.id !== id);
+      const updatedCustomers = [...customers];
+      updatedCustomers.splice(index, 1);
       saveCustomers(updatedCustomers);
     }
   };
 
-  const getCompanyName = (companyId: string) => {
-    const company = companies.find(c => c.id === companyId);
-    return company ? company.name : 'Empresa não encontrada';
-  };
+  // Não precisamos mais dessa função, pois agora armazenamos o nome da empresa diretamente
 
   return (
     <div>
@@ -129,14 +115,8 @@ const Customers: React.FC = () => {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Nome Completo"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-            <Input
-              label="CPF"
-              value={formData.cpf}
-              onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               required
             />
             <Input
@@ -148,50 +128,25 @@ const Customers: React.FC = () => {
             />
             <Input
               label="Telefone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              required
-            />
-            <Input
-              label="Endereço"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              required
-              className="md:col-span-2"
-            />
-            <Input
-              label="Cidade"
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              required
-            />
-            <Input
-              label="Estado"
-              value={formData.state}
-              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              required
-            />
-            <Input
-              label="CEP"
-              value={formData.zipCode}
-              onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+              value={formData.telefone}
+              onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
               required
             />
             
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Empresa
               </label>
               <select
-                value={formData.companyId}
-                onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
+                value={formData.empresa}
+                onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="">Selecione uma empresa</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
+                {companies.map((company, index) => (
+                  <option key={index} value={company.nomeFantasia}>
+                    {company.nomeFantasia}
                   </option>
                 ))}
               </select>
@@ -210,16 +165,16 @@ const Customers: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {customers.map((customer) => (
-          <Card key={customer.id} className="hover:shadow-lg transition-shadow duration-200">
+        {customers.map((customer, index) => (
+          <Card key={index} className="hover:shadow-lg transition-shadow duration-200">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-primary-200 rounded-lg flex items-center justify-center mr-3">
-                  <Users className="w-5 h-5 text-primary-700" />
+                <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                  <Users className="w-5 h-5 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{customer.name}</h3>
-                  <p className="text-sm text-gray-500">{customer.cpf}</p>
+                  <h3 className="font-semibold text-gray-900">{customer.nome}</h3>
+                  <p className="text-sm text-gray-500">{customer.email}</p>
                 </div>
               </div>
               <div className="flex gap-1">
@@ -233,7 +188,7 @@ const Customers: React.FC = () => {
                 <Button
                   size="sm"
                   variant="danger"
-                  onClick={() => handleDelete(customer.id)}
+                  onClick={() => handleDelete(index)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -242,9 +197,8 @@ const Customers: React.FC = () => {
             
             <div className="space-y-2 text-sm">
               <p><span className="font-medium">Email:</span> {customer.email}</p>
-              <p><span className="font-medium">Telefone:</span> {customer.phone}</p>
-              <p><span className="font-medium">Cidade:</span> {customer.city}, {customer.state}</p>
-              <p><span className="font-medium">Empresa:</span> {getCompanyName(customer.companyId)}</p>
+              <p><span className="font-medium">Telefone:</span> {customer.telefone}</p>
+              <p><span className="font-medium">Empresa:</span> {customer.empresa}</p>
             </div>
           </Card>
         ))}

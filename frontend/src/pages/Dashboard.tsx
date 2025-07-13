@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Card from '../components/Card';
 import { Building2, Package, Users, ShoppingCart, TrendingUp, DollarSign } from 'lucide-react';
-import { Company, Product, Customer, Order } from '../types';
+import { Empresa, Produto, Cliente, Pedido, PedidoProduto } from '../types';
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -14,21 +14,25 @@ const Dashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    const companies: Company[] = JSON.parse(localStorage.getItem('companies') || '[]');
-    const products: Product[] = JSON.parse(localStorage.getItem('products') || '[]');
-    const customers: Customer[] = JSON.parse(localStorage.getItem('customers') || '[]');
-    const orders: Order[] = JSON.parse(localStorage.getItem('orders') || '[]');
+    const empresas: Empresa[] = JSON.parse(localStorage.getItem('companies') || '[]');
+    const produtos: Produto[] = JSON.parse(localStorage.getItem('products') || '[]');
+    const clientes: Cliente[] = JSON.parse(localStorage.getItem('customers') || '[]');
+    const pedidos: Pedido[] = JSON.parse(localStorage.getItem('orders') || '[]');
+    const pedidosProdutos: PedidoProduto[] = JSON.parse(localStorage.getItem('orderProducts') || '[]');
 
-    const revenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const pendingOrders = orders.filter(order => order.status === 'pending').length;
+    // Calcular receita total baseada nos itens de pedido
+    const revenue = pedidosProdutos.reduce((sum, item) => {
+      const produto = produtos.find(p => p.nome === item.produto);
+      return sum + (produto ? produto.valor * item.quantidade : 0);
+    }, 0);
 
     setStats({
-      companies: companies.length,
-      products: products.length,
-      customers: customers.length,
-      orders: orders.length,
+      companies: empresas.length,
+      products: produtos.length,
+      customers: clientes.length,
+      orders: pedidos.length,
       revenue,
-      pendingOrders,
+      pendingOrders: 0, // Removido o conceito de pedidos pendentes, pois não existe no diagrama
     });
   }, []);
 

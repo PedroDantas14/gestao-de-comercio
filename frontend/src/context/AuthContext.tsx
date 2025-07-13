@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, AuthContextType } from '../types';
+import { Usuario, AuthContextType } from '../types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -16,7 +16,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<Usuario | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('currentUser');
@@ -25,28 +25,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const register = async (name: string, email: string, password: string): Promise<boolean> => {
+  const register = async (nome: string, email: string, senha: string): Promise<boolean> => {
     try {
       const users = JSON.parse(localStorage.getItem('users') || '[]');
       
-      if (users.find((user: User) => user.email === email)) {
+      if (users.find((user: Usuario) => user.email === email)) {
         return false; // Email já existe
       }
 
-      const newUser: User = {
-        id: Date.now().toString(),
-        name,
+      const newUser: Usuario = {
+        nome,
         email,
-        password,
-        createdAt: new Date().toISOString(),
+        senha
       };
 
       users.push(newUser);
       localStorage.setItem('users', JSON.stringify(users));
       
-      const userForStorage = { ...newUser };
-      delete userForStorage.password;
-      setCurrentUser(userForStorage as User);
+      // Criando uma cópia sem a senha para armazenar
+      const userForStorage = {
+        nome: newUser.nome,
+        email: newUser.email
+      };
+      setCurrentUser(userForStorage as Usuario);
       localStorage.setItem('currentUser', JSON.stringify(userForStorage));
       
       return true;
@@ -55,15 +56,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, senha: string): Promise<boolean> => {
     try {
       const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = users.find((u: User) => u.email === email && u.password === password);
+      const user = users.find((u: Usuario) => u.email === email && u.senha === senha);
       
       if (user) {
-        const userForStorage = { ...user };
-        delete userForStorage.password;
-        setCurrentUser(userForStorage as User);
+        // Criando uma cópia sem a senha para armazenar
+        const userForStorage = {
+          nome: user.nome,
+          email: user.email
+        };
+        setCurrentUser(userForStorage as Usuario);
         localStorage.setItem('currentUser', JSON.stringify(userForStorage));
         return true;
       }

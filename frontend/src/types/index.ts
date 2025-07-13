@@ -1,71 +1,49 @@
-export interface User {
-  id: string;
-  name: string;
+// Tipos baseados exatamente no diagrama apresentado
+
+export interface Usuario {
+  nome: string;
   email: string;
-  password: string;
-  createdAt: string;
+  senha: string; // hash
 }
 
-export interface Company {
-  id: string;
-  name: string;
+export interface Empresa {
+  nomeFantasia: string;
+  razaoSocial: string;
   cnpj: string;
+}
+
+export interface Cliente {
+  nome: string;
   email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  createdAt: string;
+  telefone: string;
+  empresa: string; // Referência à empresa
 }
 
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  stock: number;
-  companyId: string;
-  createdAt: string;
+export interface Produto {
+  nome: string;
+  valor: number;
+  descricao: string;
+  empresa: string; // Referência à empresa
 }
 
-export interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  cpf: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  companyId: string;
-  createdAt: string;
+export interface PedidoProduto {
+  pedido: string; // Referência ao pedido
+  produto: string; // Referência ao produto
+  quantidade: number;
 }
 
-export interface OrderItem {
-  productId: string;
-  productName: string;
-  quantity: number;
-  price: number;
-  total: number;
+export interface Pedido {
+  numero: string;
+  cliente: string; // Referência ao cliente
+  empresa: string; // Referência à empresa
+  observacao: string;
+  data: string;
 }
 
-export interface Order {
-  id: string;
-  customerId: string;
-  customerName: string;
-  companyId: string;
-  items: OrderItem[];
-  total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  createdAt: string;
-}
-
+// Interface para o contexto de autenticação
 export interface AuthContextType {
-  currentUser: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
+  currentUser: Usuario | null;
+  login: (email: string, senha: string) => Promise<boolean>;
+  register: (nome: string, email: string, senha: string) => Promise<boolean>;
   logout: () => void;
 }
