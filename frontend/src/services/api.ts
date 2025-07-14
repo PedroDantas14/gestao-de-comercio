@@ -13,9 +13,15 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('Token adicionado à requisição:', token);
+  } else {
+    console.warn('Token não encontrado no localStorage ou headers não disponíveis');
   }
   
   return config;
+}, (error) => {
+  console.error('Erro no interceptor de requisição:', error);
+  return Promise.reject(error);
 });
 
 export default api;
