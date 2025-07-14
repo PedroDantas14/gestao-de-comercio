@@ -2,43 +2,70 @@ import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { Pedido, Cliente, PedidoProduto, Produto } from '../types';
-import { Eye, ClipboardList } from 'lucide-react';
+import { Eye, ClipboardList, Loader } from 'lucide-react';
+import PedidoService from '../services/pedido.service';
+import ClienteService from '../services/cliente.service';
+import ProdutoService from '../services/produto.service';
 
 const Orders: React.FC = () => {
   const [orders, setOrders] = useState<Pedido[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Pedido | null>(null);
-  const [orderProducts, setOrderProducts] = useState<PedidoProduto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [products, setProducts] = useState<Produto[]>([]);
   const [customers, setCustomers] = useState<Cliente[]>([]);
-  // Removemos o estado de empresas já que não estamos usando diretamente
 
   useEffect(() => {
-    loadOrders();
-    loadOrderProducts();
-    loadProducts();
-    loadCustomers();
+    loadData();
   }, []);
 
-  const loadOrders = () => {
-    const storedOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-    setOrders(storedOrders.sort((a: Pedido, b: Pedido) => 
-      new Date(b.data).getTime() - new Date(a.data).getTime()
-    ));
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      await Promise.all([
+        loadOrders(),
+        loadProducts(),
+        loadCustomers()
+      ]);
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err);
+      setError('Erro ao carregar dados. Verifique se o servidor está rodando.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const loadOrderProducts = () => {
-    const storedOrderProducts = JSON.parse(localStorage.getItem('orderProducts') || '[]');
-    setOrderProducts(storedOrderProducts);
+  const loadOrders = async () => {
+    try {
+      const data = await PedidoService.getAll();
+      setOrders(data.sort((a: Pedido, b: Pedido) => 
+        new Date(b.data).getTime() - new Date(a.data).getTime()
+      ));
+    } catch (err) {
+      console.error('Erro ao carregar pedidos:', err);
+      throw err;
+    }
   };
 
-  const loadProducts = () => {
-    const storedProducts = JSON.parse(localStorage.getItem('products') || '[]');
-    setProducts(storedProducts);
+  const loadProducts = async () => {
+    try {
+      const data = await ProdutoService.getAll();
+      setProducts(data);
+    } catch (err) {
+      console.error('Erro ao carregar produtos:', err);
+      throw err;
+    }
   };
 
-  const loadCustomers = () => {
-    const storedCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
-    setCustomers(storedCustomers);
+  const loadCustomers = async () => {
+    try {
+      const data = await ClienteService.getAll();
+      setCustomers(data);
+    } catch (err) {
+      console.error('Erro ao carregar clientes:', err);
+      throw err;
+    }
   };
 
   // Removemos a função loadCompanies já que não estamos usando empresas diretamente
@@ -66,28 +93,29 @@ const Orders: React.FC = () => {
     });
   };
 
-  const getCustomerName = (customerRef: string) => {
-    const customer = customers.find(c => c.nome === customerRef);
+  const getCustomerName = (customerId: string) => {
+    const customer = customers.find(c => c._id === customerId);
     return customer ? customer.nome : 'Cliente não encontrado';
   };
 
-  const getOrderProducts = (orderNumber: string) => {
-    return orderProducts.filter(op => op.pedido === orderNumber);
-  };
-
-  const getProductName = (productRef: string) => {
-    const product = products.find(p => p.nome === productRef);
+  const getProductName = (productId: string) => {
+    const product = products.find(p => p._id === productId);
     return product ? product.nome : 'Produto não encontrado';
   };
 
-  const calculateOrderTotal = (orderNumber: string) => {
-    const orderItems = orderProducts.filter(op => op.pedido === orderNumber);
+  const calculateOrderTotal = (order: Pedido) => {
+    if (!order || !order.produtos) return '0.00';
+    
     let total = 0;
     
-    orderItems.forEach(item => {
-      const product = products.find(p => p.nome === item.produto);
-      if (product) {
-        total += product.valor * item.quantidade;
+    order.produtos.forEach((item: PedidoProduto) => {
+      if (typeof item.produto === 'string') {
+        const product = products.find(p => p._id === item.produto);
+        if (product) {
+          total += product.valor * item.quantidade;
+        }
+      } else {
+        total += item.produto.valor * item.quantidade;
       }
     });
     
@@ -110,7 +138,19 @@ const Orders: React.FC = () => {
         </Button>
       </div>
 
-      {selectedOrder ? (
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader className="w-8 h-8 animate-spin text-accent-600" />
+          <span className="ml-2 text-gray-600">Carregando pedidos...</span>
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700 mb-4">
+          <p>{error}</p>
+          <Button onClick={loadData} className="mt-2" size="sm">
+            Tentar novamente
+          </Button>
+        </div>
+      ) : selectedOrder ? (
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Detalhes do Pedido #{selectedOrder.numero}</h2>
@@ -125,11 +165,11 @@ const Orders: React.FC = () => {
                 <h3 className="font-medium text-gray-900 mb-2">Informações do Pedido</h3>
                 <div className="space-y-2 text-sm">
                   <p><span className="font-medium">Número do Pedido:</span> #{selectedOrder.numero}</p>
-                  <p><span className="font-medium">Cliente:</span> {getCustomerName(selectedOrder.cliente)}</p>
-                  <p><span className="font-medium">Empresa:</span> {selectedOrder.empresa}</p>
+                  <p><span className="font-medium">Cliente:</span> {typeof selectedOrder.cliente === 'string' ? getCustomerName(selectedOrder.cliente) : selectedOrder.cliente.nome}</p>
+                  <p><span className="font-medium">Empresa:</span> {typeof selectedOrder.empresa === 'string' ? 'Empresa ID: ' + selectedOrder.empresa : selectedOrder.empresa.nomeFantasia}</p>
                   <p><span className="font-medium">Data do Pedido:</span> {formatDate(selectedOrder.data)}</p>
                   <p><span className="font-medium">Observação:</span> {selectedOrder.observacao || 'Nenhuma'}</p>
-                  <p><span className="font-medium">Valor Total:</span> R$ {calculateOrderTotal(selectedOrder.numero)}</p>
+                  <p><span className="font-medium">Valor Total:</span> R$ {calculateOrderTotal(selectedOrder)}</p>
                 </div>
               </div>
             </div>
@@ -147,12 +187,14 @@ const Orders: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {getOrderProducts(selectedOrder.numero).map((item, index) => {
-                      const product = products.find(p => p.nome === item.produto);
+                    {selectedOrder.produtos && selectedOrder.produtos.map((item: PedidoProduto, index: number) => {
+                      const productId = typeof item.produto === 'string' ? item.produto : item.produto._id;
+                      const product = products.find(p => p._id === productId);
                       const price = product ? product.valor : 0;
+                      const productName = typeof item.produto === 'string' ? getProductName(item.produto) : item.produto.nome;
                       return (
                         <tr key={index}>
-                          <td className="px-4 py-3 text-sm">{getProductName(item.produto)}</td>
+                          <td className="px-4 py-3 text-sm">{productName}</td>
                           <td className="px-4 py-3 text-sm">{item.quantidade}</td>
                           <td className="px-4 py-3 text-sm">R$ {price.toFixed(2)}</td>
                           <td className="px-4 py-3 text-sm">R$ {(price * item.quantidade).toFixed(2)}</td>
@@ -163,7 +205,7 @@ const Orders: React.FC = () => {
                   <tfoot>
                     <tr>
                       <td colSpan={3} className="px-4 py-3 text-right font-medium">Total:</td>
-                      <td className="px-4 py-3 font-medium">R$ {calculateOrderTotal(selectedOrder.numero)}</td>
+                      <td className="px-4 py-3 font-medium">R$ {calculateOrderTotal(selectedOrder)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -183,12 +225,12 @@ const Orders: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Pedido #{order.numero}</h3>
-                    <p className="text-sm text-gray-500">{getCustomerName(order.cliente)}</p>
+                    <p className="text-sm text-gray-500">{typeof order.cliente === 'string' ? getCustomerName(order.cliente) : order.cliente.nome}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-sm font-medium">R$ {calculateOrderTotal(order.numero)}</p>
+                    <p className="text-sm font-medium">R$ {calculateOrderTotal(order)}</p>
                     <p className="text-xs text-gray-500">{formatDate(order.data)}</p>
                   </div>
                   <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getOrderDateColor(order.data)}`}>

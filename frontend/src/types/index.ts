@@ -1,43 +1,50 @@
-// Tipos baseados exatamente no diagrama apresentado
+// Tipos baseados no backend MongoDB
 
-export interface Usuario {
-  nome: string;
-  email: string;
-  senha: string; // hash
+export interface BaseModel {
+  _id?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface Empresa {
+export interface Usuario extends BaseModel {
+  nome: string;
+  email: string;
+  senha?: string; // hash - opcional para não exigir no frontend
+}
+
+export interface Empresa extends BaseModel {
   nomeFantasia: string;
   razaoSocial: string;
   cnpj: string;
 }
 
-export interface Cliente {
+export interface Cliente extends BaseModel {
   nome: string;
   email: string;
   telefone: string;
-  empresa: string; // Referência à empresa
+  empresa: string | Empresa; // Referência à empresa - pode ser string (ID) ou objeto completo
 }
 
-export interface Produto {
+export interface Produto extends BaseModel {
   nome: string;
   valor: number;
   descricao: string;
-  empresa: string; // Referência à empresa
+  empresa: string | Empresa; // Referência à empresa - pode ser string (ID) ou objeto completo
 }
 
-export interface PedidoProduto {
-  pedido: string; // Referência ao pedido
-  produto: string; // Referência ao produto
+export interface PedidoProduto extends BaseModel {
+  pedido: string | Pedido; // Referência ao pedido - pode ser string (ID) ou objeto completo
+  produto: string | Produto; // Referência ao produto - pode ser string (ID) ou objeto completo
   quantidade: number;
 }
 
-export interface Pedido {
+export interface Pedido extends BaseModel {
   numero: string;
-  cliente: string; // Referência ao cliente
-  empresa: string; // Referência à empresa
+  cliente: string | Cliente; // Referência ao cliente - pode ser string (ID) ou objeto completo
+  empresa: string | Empresa; // Referência à empresa - pode ser string (ID) ou objeto completo
   observacao: string;
   data: string;
+  produtos?: PedidoProduto[]; // Lista de produtos do pedido
 }
 
 // Interface para o contexto de autenticação
@@ -46,4 +53,5 @@ export interface AuthContextType {
   login: (email: string, senha: string) => Promise<boolean>;
   register: (nome: string, email: string, senha: string) => Promise<boolean>;
   logout: () => void;
+  loading: boolean; // Indica se está carregando a autenticação
 }

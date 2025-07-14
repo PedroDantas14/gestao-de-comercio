@@ -26,12 +26,16 @@ app.use(express.urlencoded({ extended: true }));
 // Conexão com MongoDB
 const connectDB = async () => {
   try {
-    // Usando a variável de ambiente MONGO_URI
-    const mongoURI = 'mongodb+srv://alvesdantas144:pedro123@cluster0.aehyijm.mongodb.net/gestao-de-comercio?retryWrites=true&w=majority&appName=Cluster0';
-    await mongoose.connect(mongoURI);
+    // Usando a variável de ambiente MONGO_URI ou o valor hardcoded como fallback
+    const mongoURI = process.env.MONGO_URI || 'mongodb+srv://alvesdantas144:pedro123@cluster0.aehyijm.mongodb.net/gestao-de-comercio?retryWrites=true&w=majority&appName=Cluster0';
+    await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
     console.log("Conectado ao MongoDB Atlas com sucesso");
   } catch (error) {
-    console.log("Erro ao conectar com o MongoDB:", error);
+    console.error("Erro ao conectar com o MongoDB:", error);
+    process.exit(1); // Encerra o processo se não conseguir conectar ao banco de dados
   }
 };
 

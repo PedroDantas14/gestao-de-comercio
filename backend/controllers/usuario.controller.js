@@ -6,6 +6,17 @@ export const registrar = async (req, res) => {
   try {
     const { nome, email, senha } = req.body;
 
+    // Verificar se todos os campos foram fornecidos
+    if (!nome || !email || !senha) {
+      return res.status(400).json({ message: 'Todos os campos são obrigatórios' });
+    }
+
+    // Verificar se o email é válido
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Email inválido' });
+    }
+
     // Verificar se o usuário já existe
     const usuarioExistente = await Usuario.findOne({ email });
     if (usuarioExistente) {
@@ -20,24 +31,26 @@ export const registrar = async (req, res) => {
     });
 
     await novoUsuario.save();
+    console.log('Usuário salvo com sucesso:', novoUsuario._id);
 
     // Gerar token JWT
     const token = jwt.sign(
       { id: novoUsuario._id, email: novoUsuario.email },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'VENDERGAS',
       { expiresIn: '24h' }
     );
 
     res.status(201).json({
       message: 'Usuário registrado com sucesso',
       token,
-      usuario: {
+      user: {
         id: novoUsuario._id,
         nome: novoUsuario.nome,
         email: novoUsuario.email
       }
     });
   } catch (error) {
+    console.error('Erro ao registrar usuário:', error);
     res.status(500).json({ message: 'Erro ao registrar usuário', error: error.message });
   }
 };
@@ -62,14 +75,14 @@ export const login = async (req, res) => {
     // Gerar token JWT
     const token = jwt.sign(
       { id: usuario._id, email: usuario.email },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'VENDERGAS',
       { expiresIn: '24h' }
     );
 
     res.status(200).json({
       message: 'Login realizado com sucesso',
       token,
-      usuario: {
+      user: {
         id: usuario._id,
         nome: usuario.nome,
         email: usuario.email
