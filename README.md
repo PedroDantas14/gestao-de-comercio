@@ -125,6 +125,7 @@ backend/
 - Tokens JWT com expiração
 - Validação de dados no backend
 - Proteção contra CSRF e XSS
+- Isolamento de dados por usuário (cada usuário vê apenas seus próprios dados)
 
 ### Validações
 - Validação de formulários no frontend
@@ -144,8 +145,9 @@ backend/
 1. Navegue até a pasta `backend`
 2. Instale as dependências: `npm install`
 3. Configure as variáveis de ambiente (copie `.env.example` para `.env`)
-4. Inicie o servidor: `npm run dev`
-5. O servidor estará disponível em `http://localhost:3000`
+4. Execute o script de migração para associar dados existentes aos usuários: `node scripts/migracao-usuario.js`
+5. Inicie o servidor: `npm run dev`
+6. O servidor estará disponível em `http://localhost:3000`
 
 ### Frontend
 1. Navegue até a pasta `frontend`
@@ -191,6 +193,10 @@ backend/
 
 ## 📈 Próximos Passos
 
+### Funcionalidades já implementadas
+- ✅ **Isolamento de dados por usuário**: Cada usuário agora vê apenas seus próprios dados (empresas, clientes, produtos e pedidos)
+
+### Funcionalidades futuras
 - **Relatórios** em PDF
 - **Integração** com sistemas de pagamento
 - **Notificações** em tempo real
