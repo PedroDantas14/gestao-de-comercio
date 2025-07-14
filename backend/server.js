@@ -24,9 +24,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Conexão com MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/gestao-comercio')
-  .then(() => console.log('Conectado ao MongoDB'))
-  .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
+const connectDB = async () => {
+  try {
+    // Usando a variável de ambiente MONGO_URI
+    const mongoURI = 'mongodb+srv://alvesdantas144:pedro123@cluster0.aehyijm.mongodb.net/gestao-de-comercio?retryWrites=true&w=majority&appName=Cluster0';
+    await mongoose.connect(mongoURI);
+    console.log("Conectado ao MongoDB Atlas com sucesso");
+  } catch (error) {
+    console.log("Erro ao conectar com o MongoDB:", error);
+  }
+};
+
+// Iniciar conexão com o MongoDB
+connectDB();
 
 // Middleware de autenticação JWT
 const authenticateToken = (req, res, next) => {
@@ -52,8 +62,6 @@ app.get("/", (req, res) => {
   res.json({ message: "API de Gestão de Comércio" });
 });
 
-// Rotas já importadas no topo do arquivo
-
 // Usar rotas
 app.use("/api/auth", usuarioRoutes);
 app.use("/api/empresas", authenticateToken, empresaRoutes);
@@ -62,6 +70,4 @@ app.use("/api/produtos", authenticateToken, produtoRoutes);
 app.use("/api/pedidos", authenticateToken, pedidoRoutes);
 
 // Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
