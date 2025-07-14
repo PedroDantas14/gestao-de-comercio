@@ -24,6 +24,10 @@ const pedidoSchema = new mongoose.Schema({
   data: {
     type: Date,
     default: Date.now
+  },
+  valorTotal: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

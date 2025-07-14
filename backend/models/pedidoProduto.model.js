@@ -15,6 +15,11 @@ const pedidoProdutoSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1
+  },
+  valorUnitario: {
+    type: Number,
+    required: true,
+    min: 0
   }
 }, {
   timestamps: true

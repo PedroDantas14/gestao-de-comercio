@@ -104,12 +104,21 @@ const Orders: React.FC = () => {
   };
 
   const calculateOrderTotal = (order: Pedido) => {
+    // Se o pedido já tem um valorTotal definido, use-o
+    if (order.valorTotal !== undefined && order.valorTotal !== null) {
+      return order.valorTotal.toFixed(2);
+    }
+    
+    // Caso contrário, calcule com base nos produtos
     if (!order || !order.produtos) return '0.00';
     
     let total = 0;
     
     order.produtos.forEach((item: PedidoProduto) => {
-      if (typeof item.produto === 'string') {
+      // Se o item tem valorUnitario, use-o
+      if (item.valorUnitario) {
+        total += item.valorUnitario * item.quantidade;
+      } else if (typeof item.produto === 'string') {
         const product = products.find(p => p._id === item.produto);
         if (product) {
           total += product.valor * item.quantidade;
@@ -190,7 +199,8 @@ const Orders: React.FC = () => {
                     {selectedOrder.produtos && selectedOrder.produtos.map((item: PedidoProduto, index: number) => {
                       const productId = typeof item.produto === 'string' ? item.produto : item.produto._id;
                       const product = products.find(p => p._id === productId);
-                      const price = product ? product.valor : 0;
+                      // Usar o valorUnitario do item se disponível, caso contrário usar o valor atual do produto
+                      const price = item.valorUnitario !== undefined ? item.valorUnitario : (product ? product.valor : 0);
                       const productName = typeof item.produto === 'string' ? getProductName(item.produto) : item.produto.nome;
                       return (
                         <tr key={index}>

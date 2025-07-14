@@ -54,7 +54,17 @@ const Customers: React.FC = () => {
     setLoading(true);
     setError('');
     
+    // Verificar se o token está disponível
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Você precisa estar autenticado para adicionar ou editar clientes');
+      setLoading(false);
+      return;
+    }
+    
     try {
+      console.log('Dados do formulário:', formData);
+      
       if (editingCustomer && editingCustomer._id) {
         // Atualizar cliente existente
         await ClienteService.update(editingCustomer._id, formData);
@@ -66,9 +76,14 @@ const Customers: React.FC = () => {
       // Recarregar a lista de clientes
       await loadCustomers();
       resetForm();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao salvar cliente:', err);
-      setError('Erro ao salvar cliente. Verifique se o servidor está rodando.');
+      // Verificar se o erro tem uma resposta do servidor com mensagem
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(`Erro: ${err.response.data.message}`);
+      } else {
+        setError('Erro ao salvar cliente. Verifique se o servidor está rodando.');
+      }
     } finally {
       setLoading(false);
     }
@@ -173,8 +188,8 @@ const Customers: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="">Selecione uma empresa</option>
-                {companies.map((company, index) => (
-                  <option key={index} value={company.nomeFantasia}>
+                {companies.map((company) => (
+                  <option key={company._id} value={company._id}>
                     {company.nomeFantasia}
                   </option>
                 ))}

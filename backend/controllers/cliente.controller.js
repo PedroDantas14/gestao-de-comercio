@@ -1,10 +1,34 @@
 import Cliente from '../models/cliente.model.js';
 import Empresa from '../models/empresa.model.js';
+import mongoose from 'mongoose';
 
 // Criar novo cliente
 export const criarCliente = async (req, res) => {
   try {
     const { nome, email, telefone, empresa } = req.body;
+    
+    console.log('Dados recebidos:', { nome, email, telefone, empresa });
+    
+    // Validar campos obrigatórios
+    if (!nome || !email || !telefone) {
+      return res.status(400).json({ message: 'Nome, email e telefone são campos obrigatórios' });
+    }
+    
+    // Verificar se o email é válido
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Email inválido' });
+    }
+    
+    // Verificar se a empresa foi fornecida
+    if (!empresa) {
+      return res.status(400).json({ message: 'ID da empresa é obrigatório' });
+    }
+    
+    // Verificar se o ID da empresa é válido
+    if (!mongoose.Types.ObjectId.isValid(empresa)) {
+      return res.status(400).json({ message: 'ID da empresa inválido' });
+    }
 
     // Verificar se a empresa existe
     const empresaExistente = await Empresa.findById(empresa);
@@ -21,12 +45,14 @@ export const criarCliente = async (req, res) => {
     });
 
     await novoCliente.save();
+    console.log('Cliente salvo com sucesso:', novoCliente);
 
     res.status(201).json({
       message: 'Cliente criado com sucesso',
       cliente: novoCliente
     });
   } catch (error) {
+    console.error('Erro ao criar cliente:', error);
     res.status(500).json({ message: 'Erro ao criar cliente', error: error.message });
   }
 };

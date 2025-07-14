@@ -36,6 +36,7 @@ export interface PedidoProduto extends BaseModel {
   pedido: string | Pedido; // Referência ao pedido - pode ser string (ID) ou objeto completo
   produto: string | Produto; // Referência ao produto - pode ser string (ID) ou objeto completo
   quantidade: number;
+  valorUnitario?: number; // Valor unitário do produto no momento da venda
 }
 
 export interface Pedido extends BaseModel {
@@ -44,6 +45,7 @@ export interface Pedido extends BaseModel {
   empresa: string | Empresa; // Referência à empresa - pode ser string (ID) ou objeto completo
   observacao: string;
   data: string;
+  valorTotal?: number; // Valor total do pedido
   produtos?: PedidoProduto[]; // Lista de produtos do pedido
 }
 

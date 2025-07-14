@@ -57,6 +57,8 @@ export const criarPedido = async (req, res) => {
 
     // Adicionar produtos ao pedido
     const pedidoProdutos = [];
+    let valorTotal = 0;
+    
     for (const item of produtos) {
       // Verificar se o produto existe
       const produtoExistente = await Produto.findById(item.produto);
@@ -65,16 +67,26 @@ export const criarPedido = async (req, res) => {
         session.endSession();
         return res.status(404).json({ message: `Produto com ID ${item.produto} não encontrado` });
       }
-
+      
+      // Obter o valor do produto
+      const valorUnitario = produtoExistente.valor || 0;
+      const subtotal = valorUnitario * item.quantidade;
+      valorTotal += subtotal;
+      
       const pedidoProduto = new PedidoProduto({
         pedido: pedidoSalvo._id,
         produto: item.produto,
-        quantidade: item.quantidade
+        quantidade: item.quantidade,
+        valorUnitario: valorUnitario
       });
 
       await pedidoProduto.save({ session });
       pedidoProdutos.push(pedidoProduto);
     }
+    
+    // Atualizar o valor total do pedido
+    pedidoSalvo.valorTotal = valorTotal;
+    await pedidoSalvo.save({ session });
 
     await session.commitTransaction();
     session.endSession();
@@ -94,12 +106,28 @@ export const criarPedido = async (req, res) => {
 // Listar todos os pedidos
 export const listarPedidos = async (req, res) => {
   try {
+    // Buscar todos os pedidos com seus dados básicos
     const pedidos = await Pedido.find()
       .populate('cliente', 'nome email')
       .populate('empresa', 'nomeFantasia')
       .sort({ data: -1 });
     
-    res.status(200).json(pedidos);
+    // Para cada pedido, buscar seus produtos
+    const pedidosCompletos = await Promise.all(pedidos.map(async (pedido) => {
+      // Buscar os produtos do pedido
+      const pedidoProdutos = await PedidoProduto.find({ pedido: pedido._id })
+        .populate('produto', 'nome valor descricao');
+      
+      // Converter o documento Mongoose para um objeto simples
+      const pedidoObj = pedido.toObject();
+      
+      // Adicionar os produtos ao pedido
+      pedidoObj.produtos = pedidoProdutos;
+      
+      return pedidoObj;
+    }));
+    
+    res.status(200).json(pedidosCompletos);
   } catch (error) {
     res.status(500).json({ message: 'Erro ao listar pedidos', error: error.message });
   }
@@ -120,10 +148,13 @@ export const obterPedido = async (req, res) => {
     const pedidoProdutos = await PedidoProduto.find({ pedido: pedido._id })
       .populate('produto', 'nome valor descricao');
 
-    res.status(200).json({
-      pedido,
-      itens: pedidoProdutos
-    });
+    // Converter o documento Mongoose para um objeto simples
+    const pedidoObj = pedido.toObject();
+    
+    // Adicionar os produtos ao pedido
+    pedidoObj.produtos = pedidoProdutos;
+
+    res.status(200).json(pedidoObj);
   } catch (error) {
     res.status(500).json({ message: 'Erro ao buscar pedido', error: error.message });
   }
