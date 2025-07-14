@@ -1,10 +1,28 @@
 import Produto from '../models/produto.model.js';
 import Empresa from '../models/empresa.model.js';
+import mongoose from 'mongoose';
 
 // Criar novo produto
 export const criarProduto = async (req, res) => {
   try {
     const { nome, valor, descricao, empresa } = req.body;
+    
+    console.log('Dados recebidos:', { nome, valor, descricao, empresa });
+    
+    // Validar campos obrigatórios
+    if (!nome || !descricao || valor === undefined) {
+      return res.status(400).json({ message: 'Nome, descrição e valor são campos obrigatórios' });
+    }
+    
+    // Verificar se a empresa foi fornecida
+    if (!empresa) {
+      return res.status(400).json({ message: 'ID da empresa é obrigatório' });
+    }
+    
+    // Verificar se o ID da empresa é válido
+    if (!mongoose.Types.ObjectId.isValid(empresa)) {
+      return res.status(400).json({ message: 'ID da empresa inválido' });
+    }
 
     // Verificar se a empresa existe
     const empresaExistente = await Empresa.findById(empresa);
@@ -21,12 +39,14 @@ export const criarProduto = async (req, res) => {
     });
 
     await novoProduto.save();
+    console.log('Produto salvo com sucesso:', novoProduto);
 
     res.status(201).json({
       message: 'Produto criado com sucesso',
       produto: novoProduto
     });
   } catch (error) {
+    console.error('Erro ao criar produto:', error);
     res.status(500).json({ message: 'Erro ao criar produto', error: error.message });
   }
 };
