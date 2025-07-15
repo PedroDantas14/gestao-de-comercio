@@ -20,10 +20,18 @@ const produtoSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Empresa',
     required: true
+  },
+  usuario: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Usuario',
+    required: true
   }
 }, {
   timestamps: true
 });
+
+// Índice composto para garantir que nome seja único por empresa e usuário
+produtoSchema.index({ nome: 1, empresa: 1, usuario: 1 }, { unique: true });
 
 const Produto = mongoose.model('Produto', produtoSchema);
 

@@ -6,8 +6,9 @@ import mongoose from 'mongoose';
 export const criarCliente = async (req, res) => {
   try {
     const { nome, email, telefone, empresa } = req.body;
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
     
-    console.log('Dados recebidos:', { nome, email, telefone, empresa });
+    console.log('Dados recebidos:', { nome, email, telefone, empresa, usuarioId });
     
     // Validar campos obrigatórios
     if (!nome || !email || !telefone) {
@@ -30,18 +31,25 @@ export const criarCliente = async (req, res) => {
       return res.status(400).json({ message: 'ID da empresa inválido' });
     }
 
-    // Verificar se a empresa existe
-    const empresaExistente = await Empresa.findById(empresa);
+    // Verificar se a empresa existe e pertence ao usuário atual
+    const empresaExistente = await Empresa.findOne({ _id: empresa, usuario: usuarioId });
     if (!empresaExistente) {
-      return res.status(404).json({ message: 'Empresa não encontrada' });
+      return res.status(404).json({ message: 'Empresa não encontrada ou não pertence ao usuário atual' });
     }
 
-    // Criar novo cliente
+    // Verificar se já existe um cliente com este email para este usuário
+    const clienteExistente = await Cliente.findOne({ email, usuario: usuarioId });
+    if (clienteExistente) {
+      return res.status(400).json({ message: 'Já existe um cliente com este email para este usuário' });
+    }
+
+    // Criar novo cliente associado ao usuário atual
     const novoCliente = new Cliente({
       nome,
       email,
       telefone,
-      empresa
+      empresa,
+      usuario: usuarioId
     });
 
     await novoCliente.save();
@@ -57,20 +65,36 @@ export const criarCliente = async (req, res) => {
   }
 };
 
-// Listar todos os clientes
+// Listar todos os clientes do usuário atual
 export const listarClientes = async (req, res) => {
   try {
-    const clientes = await Cliente.find().populate('empresa', 'nomeFantasia');
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
+    console.log('Listando clientes para o usuário:', usuarioId);
+    
+    // Buscar APENAS clientes que tenham o campo usuario igual ao ID do usuário atual
+    // Sem exceções - isolamento estrito de dados por usuário
+    const query = { usuario: usuarioId };
+    
+    const clientes = await Cliente.find(query).populate('empresa', 'nomeFantasia');
+    
+    console.log(`Encontrados ${clientes.length} clientes para o usuário ${usuarioId}`);
     res.status(200).json(clientes);
   } catch (error) {
+    console.error('Erro ao listar clientes:', error);
     res.status(500).json({ message: 'Erro ao listar clientes', error: error.message });
   }
 };
 
-// Obter cliente por ID
+// Obter cliente por ID (apenas se pertencer ao usuário atual)
 export const obterCliente = async (req, res) => {
   try {
-    const cliente = await Cliente.findById(req.params.id).populate('empresa', 'nomeFantasia razaoSocial cnpj');
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
+    const cliente = await Cliente.findOne({ _id: req.params.id, usuario: usuarioId })
+      .populate({
+        path: 'empresa',
+        select: 'nomeFantasia razaoSocial cnpj',
+        match: { usuario: usuarioId } // Garante que a empresa também pertence ao usuário
+      });
     if (!cliente) {
       return res.status(404).json({ message: 'Cliente não encontrado' });
     }
@@ -80,24 +104,41 @@ export const obterCliente = async (req, res) => {
   }
 };
 
-// Atualizar cliente
+// Atualizar cliente (apenas se pertencer ao usuário atual)
 export const atualizarCliente = async (req, res) => {
   try {
     const { nome, email, telefone, empresa } = req.body;
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
 
-    // Verificar se a empresa existe
+    // Verificar se a empresa existe e pertence ao usuário atual
     if (empresa) {
-      const empresaExistente = await Empresa.findById(empresa);
+      const empresaExistente = await Empresa.findOne({ _id: empresa, usuario: usuarioId });
       if (!empresaExistente) {
-        return res.status(404).json({ message: 'Empresa não encontrada' });
+        return res.status(404).json({ message: 'Empresa não encontrada ou não pertence ao usuário atual' });
       }
     }
 
-    const clienteAtualizado = await Cliente.findByIdAndUpdate(
-      req.params.id,
+    // Verificar se já existe outro cliente com este email para este usuário
+    if (email) {
+      const clienteExistente = await Cliente.findOne({ 
+        email, 
+        usuario: usuarioId, 
+        _id: { $ne: req.params.id } 
+      });
+      if (clienteExistente) {
+        return res.status(400).json({ message: 'Já existe outro cliente com este email para este usuário' });
+      }
+    }
+
+    const clienteAtualizado = await Cliente.findOneAndUpdate(
+      { _id: req.params.id, usuario: usuarioId },
       { nome, email, telefone, empresa },
       { new: true, runValidators: true }
-    ).populate('empresa', 'nomeFantasia');
+    ).populate({
+      path: 'empresa',
+      select: 'nomeFantasia',
+      match: { usuario: usuarioId } // Garante que a empresa também pertence ao usuário
+    });
 
     if (!clienteAtualizado) {
       return res.status(404).json({ message: 'Cliente não encontrado' });
@@ -112,10 +153,11 @@ export const atualizarCliente = async (req, res) => {
   }
 };
 
-// Excluir cliente
+// Excluir cliente (apenas se pertencer ao usuário atual)
 export const excluirCliente = async (req, res) => {
   try {
-    const cliente = await Cliente.findByIdAndDelete(req.params.id);
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
+    const cliente = await Cliente.findOneAndDelete({ _id: req.params.id, usuario: usuarioId });
     if (!cliente) {
       return res.status(404).json({ message: 'Cliente não encontrado' });
     }

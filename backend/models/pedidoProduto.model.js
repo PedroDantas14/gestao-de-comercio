@@ -20,6 +20,11 @@ const pedidoProdutoSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0
+  },
+  usuario: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Usuario',
+    required: true
   }
 }, {
   timestamps: true

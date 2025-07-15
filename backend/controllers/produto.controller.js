@@ -6,8 +6,9 @@ import mongoose from 'mongoose';
 export const criarProduto = async (req, res) => {
   try {
     const { nome, valor, descricao, empresa } = req.body;
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
     
-    console.log('Dados recebidos:', { nome, valor, descricao, empresa });
+    console.log('Dados recebidos:', { nome, valor, descricao, empresa, usuarioId });
     
     // Validar campos obrigatórios
     if (!nome || !descricao || valor === undefined) {
@@ -24,18 +25,25 @@ export const criarProduto = async (req, res) => {
       return res.status(400).json({ message: 'ID da empresa inválido' });
     }
 
-    // Verificar se a empresa existe
-    const empresaExistente = await Empresa.findById(empresa);
+    // Verificar se a empresa existe e pertence ao usuário atual
+    const empresaExistente = await Empresa.findOne({ _id: empresa, usuario: usuarioId });
     if (!empresaExistente) {
-      return res.status(404).json({ message: 'Empresa não encontrada' });
+      return res.status(404).json({ message: 'Empresa não encontrada ou não pertence ao usuário atual' });
     }
 
-    // Criar novo produto
+    // Verificar se já existe um produto com este nome para esta empresa e usuário
+    const produtoExistente = await Produto.findOne({ nome, empresa, usuario: usuarioId });
+    if (produtoExistente) {
+      return res.status(400).json({ message: 'Já existe um produto com este nome para esta empresa' });
+    }
+
+    // Criar novo produto associado ao usuário atual
     const novoProduto = new Produto({
       nome,
       valor,
       descricao,
-      empresa
+      empresa,
+      usuario: usuarioId
     });
 
     await novoProduto.save();
@@ -51,20 +59,36 @@ export const criarProduto = async (req, res) => {
   }
 };
 
-// Listar todos os produtos
+// Listar todos os produtos do usuário atual
 export const listarProdutos = async (req, res) => {
   try {
-    const produtos = await Produto.find().populate('empresa', 'nomeFantasia');
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
+    console.log('Listando produtos para o usuário:', usuarioId);
+    
+    // Buscar APENAS produtos que tenham o campo usuario igual ao ID do usuário atual
+    // Sem exceções - isolamento estrito de dados por usuário
+    const query = { usuario: usuarioId };
+    
+    const produtos = await Produto.find(query).populate('empresa', 'nomeFantasia');
+    
+    console.log(`Encontrados ${produtos.length} produtos para o usuário ${usuarioId}`);
     res.status(200).json(produtos);
   } catch (error) {
+    console.error('Erro ao listar produtos:', error);
     res.status(500).json({ message: 'Erro ao listar produtos', error: error.message });
   }
 };
 
-// Obter produto por ID
+// Obter produto por ID (apenas se pertencer ao usuário atual)
 export const obterProduto = async (req, res) => {
   try {
-    const produto = await Produto.findById(req.params.id).populate('empresa', 'nomeFantasia razaoSocial cnpj');
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
+    const produto = await Produto.findOne({ _id: req.params.id, usuario: usuarioId })
+      .populate({
+        path: 'empresa',
+        select: 'nomeFantasia razaoSocial cnpj',
+        match: { usuario: usuarioId } // Garante que a empresa também pertence ao usuário
+      });
     if (!produto) {
       return res.status(404).json({ message: 'Produto não encontrado' });
     }
@@ -74,24 +98,42 @@ export const obterProduto = async (req, res) => {
   }
 };
 
-// Atualizar produto
+// Atualizar produto (apenas se pertencer ao usuário atual)
 export const atualizarProduto = async (req, res) => {
   try {
     const { nome, valor, descricao, empresa } = req.body;
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
 
-    // Verificar se a empresa existe
+    // Verificar se a empresa existe e pertence ao usuário atual
     if (empresa) {
-      const empresaExistente = await Empresa.findById(empresa);
+      const empresaExistente = await Empresa.findOne({ _id: empresa, usuario: usuarioId });
       if (!empresaExistente) {
-        return res.status(404).json({ message: 'Empresa não encontrada' });
+        return res.status(404).json({ message: 'Empresa não encontrada ou não pertence ao usuário atual' });
       }
     }
 
-    const produtoAtualizado = await Produto.findByIdAndUpdate(
-      req.params.id,
+    // Verificar se já existe outro produto com este nome para esta empresa e usuário
+    if (nome && empresa) {
+      const produtoExistente = await Produto.findOne({ 
+        nome, 
+        empresa, 
+        usuario: usuarioId, 
+        _id: { $ne: req.params.id } 
+      });
+      if (produtoExistente) {
+        return res.status(400).json({ message: 'Já existe outro produto com este nome para esta empresa' });
+      }
+    }
+
+    const produtoAtualizado = await Produto.findOneAndUpdate(
+      { _id: req.params.id, usuario: usuarioId },
       { nome, valor, descricao, empresa },
       { new: true, runValidators: true }
-    ).populate('empresa', 'nomeFantasia');
+    ).populate({
+      path: 'empresa',
+      select: 'nomeFantasia',
+      match: { usuario: usuarioId } // Garante que a empresa também pertence ao usuário
+    });
 
     if (!produtoAtualizado) {
       return res.status(404).json({ message: 'Produto não encontrado' });
@@ -106,10 +148,11 @@ export const atualizarProduto = async (req, res) => {
   }
 };
 
-// Excluir produto
+// Excluir produto (apenas se pertencer ao usuário atual)
 export const excluirProduto = async (req, res) => {
   try {
-    const produto = await Produto.findByIdAndDelete(req.params.id);
+    const usuarioId = req.user.id; // Obtém o ID do usuário do token JWT
+    const produto = await Produto.findOneAndDelete({ _id: req.params.id, usuario: usuarioId });
     if (!produto) {
       return res.status(404).json({ message: 'Produto não encontrado' });
     }

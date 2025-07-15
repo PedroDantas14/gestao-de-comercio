@@ -2,7 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import cors from "cors";
-import jwt from "jsonwebtoken";
+// Importar o middleware de autenticação
+import { authenticateToken } from './middlewares/auth.middleware.js';
 
 // Importação das rotas
 import usuarioRoutes from './routes/usuario.routes.js';
@@ -42,24 +43,7 @@ const connectDB = async () => {
 // Iniciar conexão com o MongoDB
 connectDB();
 
-// Middleware de autenticação JWT
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ message: 'Token não fornecido' });
-  }
-
-  // Usando a chave JWT_SECRET definida como VENDERGAS no .env
-  jwt.verify(token, process.env.JWT_SECRET || 'VENDERGAS', (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: 'Token inválido' });
-    }
-    req.user = user;
-    next();
-  });
-};
+// O middleware de autenticação JWT foi movido para ./middlewares/auth.middleware.js
 
 // Rota de teste
 app.get("/", (req, res) => {

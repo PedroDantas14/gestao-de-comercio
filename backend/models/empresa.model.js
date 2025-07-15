@@ -14,12 +14,19 @@ const empresaSchema = new mongoose.Schema({
   cnpj: {
     type: String,
     required: true,
-    unique: true,
     trim: true
+  },
+  usuario: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Usuario',
+    required: true
   }
 }, {
   timestamps: true
 });
+
+// Índice composto para garantir que CNPJ seja único por usuário
+empresaSchema.index({ cnpj: 1, usuario: 1 }, { unique: true });
 
 const Empresa = mongoose.model('Empresa', empresaSchema);
 
