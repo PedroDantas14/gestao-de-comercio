@@ -110,10 +110,10 @@ const Products: React.FC = () => {
 
   const handleEdit = (product: Produto) => {
     setFormData({
-      nome: product.nome,
-      descricao: product.descricao,
-      valor: product.valor.toString(),
-      empresa: typeof product.empresa === 'string' ? product.empresa : (product.empresa as Empresa)._id || ''
+      nome: product.nome || '',
+      descricao: product.descricao || '',
+      valor: product.valor ? product.valor.toString() : '0',
+      empresa: typeof product.empresa === 'string' ? product.empresa : (product.empresa as Empresa)?._id || ''
     });
     setEditingProduct(product);
     setShowForm(true);
@@ -253,11 +253,11 @@ const Products: React.FC = () => {
             
             <div className="space-y-2 text-sm mb-4">
               <p className="text-gray-600">{product.descricao}</p>
-              <p><span className="font-medium">Valor:</span> R$ {product.valor.toFixed(2)}</p>
+              <p><span className="font-medium">Valor:</span> R$ {product.valor ? product.valor.toFixed(2) : '0.00'}</p>
               <p><span className="font-medium">Empresa:</span> {
                 typeof product.empresa === 'string' ? 
                   companies.find(c => c._id === product.empresa)?.nomeFantasia || product.empresa : 
-                  (product.empresa as Empresa).nomeFantasia
+                  (product.empresa as Empresa)?.nomeFantasia || ''
               }</p>
             </div>
           </Card>

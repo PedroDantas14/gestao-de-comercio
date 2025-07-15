@@ -26,6 +26,37 @@ const Customers: React.FC = () => {
     loadCompanies();
   }, []);
 
+  // Função para formatar telefone: (XX) XXXXX-XXXX
+  const formatTelefone = (value: string | undefined | null): string => {
+    // Se o valor for nulo ou indefinido, retorna string vazia
+    if (value === null || value === undefined) {
+      return '';
+    }
+    
+    // Remove todos os caracteres não numéricos
+    const digits = value.replace(/\D/g, '');
+    
+    // Limita a 11 dígitos (com DDD)
+    const limitedDigits = digits.slice(0, 11);
+    
+    // Aplica a máscara
+    if (limitedDigits.length <= 2) {
+      return `(${limitedDigits}`;
+    } else if (limitedDigits.length <= 7) {
+      return `(${limitedDigits.slice(0, 2)}) ${limitedDigits.slice(2)}`;
+    } else {
+      return `(${limitedDigits.slice(0, 2)}) ${limitedDigits.slice(2, 7)}-${limitedDigits.slice(7)}`;
+    }
+  };
+  
+  // Função para remover a formatação do telefone
+  const removeTelefoneFormat = (telefone: string | undefined | null): string => {
+    if (telefone === null || telefone === undefined) {
+      return '';
+    }
+    return telefone.replace(/\D/g, '');
+  };
+
   const loadCustomers = async () => {
     try {
       setLoading(true);
@@ -63,14 +94,20 @@ const Customers: React.FC = () => {
     }
     
     try {
-      console.log('Dados do formulário:', formData);
+      // Cria uma cópia do formData com o telefone sem formatação
+      const dataToSubmit = {
+        ...formData,
+        telefone: removeTelefoneFormat(formData.telefone)
+      };
+      
+      console.log('Dados do formulário:', dataToSubmit);
       
       if (editingCustomer && editingCustomer._id) {
         // Atualizar cliente existente
-        await ClienteService.update(editingCustomer._id, formData);
+        await ClienteService.update(editingCustomer._id, dataToSubmit);
       } else {
         // Criar novo cliente
-        await ClienteService.create(formData);
+        await ClienteService.create(dataToSubmit);
       }
       
       // Recarregar a lista de clientes
@@ -104,8 +141,8 @@ const Customers: React.FC = () => {
     setFormData({
       nome: customer.nome,
       email: customer.email,
-      telefone: customer.telefone,
-      empresa: typeof customer.empresa === 'string' ? customer.empresa : (customer.empresa as Empresa)._id || ''
+      telefone: formatTelefone(customer.telefone),
+      empresa: typeof customer.empresa === 'string' ? customer.empresa : (customer.empresa as Empresa)?._id || ''
     });
     setEditingCustomer(customer);
     setShowForm(true);
@@ -173,7 +210,8 @@ const Customers: React.FC = () => {
             <Input
               label="Telefone"
               value={formData.telefone}
-              onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, telefone: formatTelefone(e.target.value) })}
+              placeholder="(XX) XXXXX-XXXX"
               required
             />
             
@@ -242,11 +280,11 @@ const Customers: React.FC = () => {
             
             <div className="space-y-2 text-sm">
               <p><span className="font-medium">Email:</span> {customer.email}</p>
-              <p><span className="font-medium">Telefone:</span> {customer.telefone}</p>
+              <p><span className="font-medium">Telefone:</span> {formatTelefone(customer.telefone)}</p>
               <p><span className="font-medium">Empresa:</span> {
                 typeof customer.empresa === 'string' ? 
                   companies.find(c => c._id === customer.empresa)?.nomeFantasia || customer.empresa : 
-                  (customer.empresa as Empresa).nomeFantasia
+                  (customer.empresa as Empresa)?.nomeFantasia || ''
               }</p>
             </div>
           </Card>

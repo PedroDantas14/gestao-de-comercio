@@ -36,18 +36,59 @@ const Companies: React.FC = () => {
     }
   };
 
+  // Função para formatar CNPJ: XX.XXX.XXX/XXXX-XX
+  const formatCNPJ = (value: string | undefined | null): string => {
+    // Se o valor for nulo ou indefinido, retorna string vazia
+    if (value === null || value === undefined) {
+      return '';
+    }
+    
+    // Remove todos os caracteres não numéricos
+    const cnpjDigits = value.replace(/\D/g, '');
+    
+    // Limita a 14 dígitos
+    const limitedCnpj = cnpjDigits.slice(0, 14);
+    
+    // Aplica a máscara
+    if (limitedCnpj.length <= 2) {
+      return limitedCnpj;
+    } else if (limitedCnpj.length <= 5) {
+      return `${limitedCnpj.slice(0, 2)}.${limitedCnpj.slice(2)}`;
+    } else if (limitedCnpj.length <= 8) {
+      return `${limitedCnpj.slice(0, 2)}.${limitedCnpj.slice(2, 5)}.${limitedCnpj.slice(5)}`;
+    } else if (limitedCnpj.length <= 12) {
+      return `${limitedCnpj.slice(0, 2)}.${limitedCnpj.slice(2, 5)}.${limitedCnpj.slice(5, 8)}/${limitedCnpj.slice(8)}`;
+    } else {
+      return `${limitedCnpj.slice(0, 2)}.${limitedCnpj.slice(2, 5)}.${limitedCnpj.slice(5, 8)}/${limitedCnpj.slice(8, 12)}-${limitedCnpj.slice(12)}`;
+    }
+  };
+  
+  // Função para remover a formatação do CNPJ antes de enviar para o backend
+  const removeCNPJFormat = (cnpj: string | undefined | null): string => {
+    if (cnpj === null || cnpj === undefined) {
+      return '';
+    }
+    return cnpj.replace(/\D/g, '');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
     try {
+      // Cria uma cópia do formData com o CNPJ sem formatação
+      const dataToSubmit = {
+        ...formData,
+        cnpj: removeCNPJFormat(formData.cnpj)
+      };
+      
       if (editingCompany && editingCompany._id) {
         // Atualizar empresa existente
-        await EmpresaService.update(editingCompany._id, formData);
+        await EmpresaService.update(editingCompany._id, dataToSubmit);
       } else {
         // Criar nova empresa
-        await EmpresaService.create(formData);
+        await EmpresaService.create(dataToSubmit);
       }
       
       // Recarregar a lista de empresas
@@ -75,7 +116,7 @@ const Companies: React.FC = () => {
     setFormData({
       nomeFantasia: company.nomeFantasia,
       razaoSocial: company.razaoSocial,
-      cnpj: company.cnpj
+      cnpj: formatCNPJ(company.cnpj) // Formata o CNPJ ao editar
     });
     setEditingCompany(company);
     setShowForm(true);
@@ -142,7 +183,8 @@ const Companies: React.FC = () => {
             <Input
               label="CNPJ"
               value={formData.cnpj}
-              onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, cnpj: formatCNPJ(e.target.value) })}
+              placeholder="XX.XXX.XXX/XXXX-XX"
               required
             />
             
@@ -196,7 +238,7 @@ const Companies: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">{company.razaoSocial}</p>
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-sm font-medium text-gray-900">CNPJ</p>
-                <p className="text-sm text-gray-600">{company.cnpj}</p>
+                <p className="text-sm text-gray-600">{formatCNPJ(company.cnpj)}</p>
               </div>
             </Card>
           ))

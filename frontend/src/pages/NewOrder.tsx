@@ -114,8 +114,9 @@ const NewOrder: React.FC = () => {
 
   const calculateTotal = () => {
     return orderItems.reduce((sum, item) => {
+      if (!item || !item.produto) return sum;
       const product = products.find(p => p._id === item.produto);
-      return sum + (product ? product.valor * item.quantidade : 0);
+      return sum + (product && product.valor ? product.valor * (item.quantidade || 1) : 0);
     }, 0);
   };
 
@@ -244,8 +245,8 @@ const NewOrder: React.FC = () => {
                   >
                     <option value="">Selecione um cliente</option>
                     {customers.map((customer) => (
-                      <option key={customer._id} value={customer._id}>
-                        {customer.nome} - {customer.email}
+                      <option key={customer._id} value={customer._id || ''}>
+                        {customer.nome || 'Sem nome'} - {customer.email || 'Sem email'}
                       </option>
                     ))}
                   </select>
@@ -263,8 +264,8 @@ const NewOrder: React.FC = () => {
                   >
                     <option value="">Selecione uma empresa</option>
                     {companies.map((company) => (
-                      <option key={company._id} value={company._id}>
-                        {company.nomeFantasia} - {company.razaoSocial}
+                      <option key={company._id} value={company._id || ''}>
+                        {company.nomeFantasia || 'Sem nome fantasia'} - {company.razaoSocial || 'Sem razão social'}
                       </option>
                     ))}
                   </select>
@@ -295,8 +296,8 @@ const NewOrder: React.FC = () => {
                       >
                         <option value="">Selecione um produto</option>
                         {products.map((product) => (
-                          <option key={product._id} value={product._id}>
-                            {product.nome} - R$ {product.valor.toFixed(2)}
+                          <option key={product._id} value={product._id || ''}>
+                            {product.nome || 'Produto sem nome'} - R$ {product.valor ? product.valor.toFixed(2) : '0.00'}
                           </option>
                         ))}
                       </select>
@@ -332,12 +333,12 @@ const NewOrder: React.FC = () => {
                           <div>
                             <h4 className="font-medium">{product?.nome || 'Produto não encontrado'}</h4>
                             <p className="text-sm text-gray-500">
-                              {item.quantidade} x R$ {product?.valor?.toFixed(2) || '0.00'}
+                              {item.quantidade || 1} x R$ {product?.valor ? product.valor.toFixed(2) : '0.00'}
                             </p>
                           </div>
                           <div className="flex items-center">
                             <p className="font-medium mr-4">
-                              R$ {((product?.valor || 0) * item.quantidade).toFixed(2)}
+                              R$ {((product?.valor || 0) * (item.quantidade || 1)).toFixed(2)}
                             </p>
                             <button
                               type="button"
@@ -389,7 +390,7 @@ const NewOrder: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Cliente</h3>
                     <p className="font-medium">
-                      {customers.find(c => c._id === selectedCustomer)?.nome || selectedCustomer}
+                      {customers.find(c => c._id === selectedCustomer)?.nome || 'Cliente não encontrado'}
                     </p>
                   </div>
                 )}
@@ -398,7 +399,7 @@ const NewOrder: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Empresa</h3>
                     <p className="font-medium">
-                      {companies.find(c => c._id === selectedCompany)?.nomeFantasia || selectedCompany}
+                      {companies.find(c => c._id === selectedCompany)?.nomeFantasia || 'Empresa não encontrada'}
                     </p>
                   </div>
                 )}

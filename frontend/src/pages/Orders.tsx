@@ -85,6 +85,7 @@ const Orders: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Data não especificada';
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -94,11 +95,13 @@ const Orders: React.FC = () => {
   };
 
   const getCustomerName = (customerId: string) => {
+    if (!customerId) return 'Cliente não especificado';
     const customer = customers.find(c => c._id === customerId);
     return customer ? customer.nome : 'Cliente não encontrado';
   };
 
   const getProductName = (productId: string) => {
+    if (!productId) return 'Produto não especificado';
     const product = products.find(p => p._id === productId);
     return product ? product.nome : 'Produto não encontrado';
   };
@@ -174,8 +177,8 @@ const Orders: React.FC = () => {
                 <h3 className="font-medium text-gray-900 mb-2">Informações do Pedido</h3>
                 <div className="space-y-2 text-sm">
                   <p><span className="font-medium">Número do Pedido:</span> #{selectedOrder.numero}</p>
-                  <p><span className="font-medium">Cliente:</span> {typeof selectedOrder.cliente === 'string' ? getCustomerName(selectedOrder.cliente) : selectedOrder.cliente.nome}</p>
-                  <p><span className="font-medium">Empresa:</span> {typeof selectedOrder.empresa === 'string' ? 'Empresa ID: ' + selectedOrder.empresa : selectedOrder.empresa.nomeFantasia}</p>
+                  <p><span className="font-medium">Cliente:</span> {typeof selectedOrder.cliente === 'string' ? getCustomerName(selectedOrder.cliente) : (selectedOrder.cliente?.nome || 'Cliente não especificado')}</p>
+                  <p><span className="font-medium">Empresa:</span> {typeof selectedOrder.empresa === 'string' ? (selectedOrder.empresa ? 'Empresa ID: ' + selectedOrder.empresa : 'Empresa não especificada') : (selectedOrder.empresa?.nomeFantasia || 'Empresa não especificada')}</p>
                   <p><span className="font-medium">Data do Pedido:</span> {formatDate(selectedOrder.data)}</p>
                   <p><span className="font-medium">Observação:</span> {selectedOrder.observacao || 'Nenhuma'}</p>
                   <p><span className="font-medium">Valor Total:</span> R$ {calculateOrderTotal(selectedOrder)}</p>
@@ -197,11 +200,12 @@ const Orders: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {selectedOrder.produtos && selectedOrder.produtos.map((item: PedidoProduto, index: number) => {
+                      if (!item || !item.produto) return null;
                       const productId = typeof item.produto === 'string' ? item.produto : item.produto._id;
                       const product = products.find(p => p._id === productId);
                       // Usar o valorUnitario do item se disponível, caso contrário usar o valor atual do produto
                       const price = item.valorUnitario !== undefined ? item.valorUnitario : (product ? product.valor : 0);
-                      const productName = typeof item.produto === 'string' ? getProductName(item.produto) : item.produto.nome;
+                      const productName = typeof item.produto === 'string' ? getProductName(item.produto) : (item.produto?.nome || 'Produto não especificado');
                       return (
                         <tr key={index}>
                           <td className="px-4 py-3 text-sm">{productName}</td>
@@ -235,7 +239,7 @@ const Orders: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Pedido #{order.numero}</h3>
-                    <p className="text-sm text-gray-500">{typeof order.cliente === 'string' ? getCustomerName(order.cliente) : order.cliente.nome}</p>
+                    <p className="text-sm text-gray-500">{typeof order.cliente === 'string' ? getCustomerName(order.cliente) : (order.cliente?.nome || 'Cliente não especificado')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
