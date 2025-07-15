@@ -3,12 +3,15 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { Empresa } from '../types';
-import { Plus, Edit, Trash2, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, Loader2 } from 'lucide-react';
+import EmpresaService from '../services/empresa.service';
 
 const Companies: React.FC = () => {
   const [companies, setCompanies] = useState<Empresa[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Empresa | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     nomeFantasia: '',
     razaoSocial: '',
@@ -19,39 +22,43 @@ const Companies: React.FC = () => {
     loadCompanies();
   }, []);
 
-  const loadCompanies = () => {
-    const storedCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
-    setCompanies(storedCompanies);
-  };
-
-  const saveCompanies = (updatedCompanies: Empresa[]) => {
-    localStorage.setItem('companies', JSON.stringify(updatedCompanies));
-    setCompanies(updatedCompanies);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingCompany) {
-      // Como não temos mais IDs, vamos usar o índice para atualizar
-      const index = companies.findIndex(company => 
-        company.nomeFantasia === editingCompany.nomeFantasia && 
-        company.cnpj === editingCompany.cnpj
-      );
-      
-      if (index !== -1) {
-        const updatedCompanies = [...companies];
-        updatedCompanies[index] = { ...formData };
-        saveCompanies(updatedCompanies);
-      }
-    } else {
-      const newCompany: Empresa = {
-        ...formData
-      };
-      saveCompanies([...companies, newCompany]);
+  const loadCompanies = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await EmpresaService.getAll();
+      setCompanies(data);
+    } catch (err) {
+      console.error('Erro ao carregar empresas:', err);
+      setError('Não foi possível carregar as empresas. Verifique se o servidor está rodando.');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    resetForm();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    try {
+      if (editingCompany && editingCompany._id) {
+        // Atualizar empresa existente
+        await EmpresaService.update(editingCompany._id, formData);
+      } else {
+        // Criar nova empresa
+        await EmpresaService.create(formData);
+      }
+      
+      // Recarregar a lista de empresas
+      await loadCompanies();
+      resetForm();
+    } catch (err) {
+      console.error('Erro ao salvar empresa:', err);
+      setError('Erro ao salvar empresa. Verifique se o servidor está rodando.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -74,11 +81,19 @@ const Companies: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = (index: number) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta empresa?')) {
-      const updatedCompanies = [...companies];
-      updatedCompanies.splice(index, 1);
-      saveCompanies(updatedCompanies);
+      try {
+        setLoading(true);
+        setError('');
+        await EmpresaService.delete(id);
+        await loadCompanies();
+      } catch (err) {
+        console.error('Erro ao excluir empresa:', err);
+        setError('Erro ao excluir empresa. Verifique se o servidor está rodando.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -92,11 +107,22 @@ const Companies: React.FC = () => {
         <Button
           onClick={() => setShowForm(true)}
           className="flex items-center"
+          disabled={loading}
         >
-          <Plus className="w-4 h-4 mr-2" />
+          {loading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="w-4 h-4 mr-2" />
+          )}
           Nova Empresa
         </Button>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
 
       {showForm && (
         <Card title={editingCompany ? 'Editar Empresa' : 'Nova Empresa'} className="mb-8">
@@ -120,12 +146,15 @@ const Companies: React.FC = () => {
               required
             />
             
-            <div className="md:col-span-2 flex gap-2">
-              <Button type="submit">
-                {editingCompany ? 'Atualizar' : 'Salvar'}
-              </Button>
-              <Button variant="secondary" onClick={resetForm}>
+            <div className="flex justify-end space-x-2 mt-4">
+              <Button type="button" variant="secondary" onClick={resetForm} disabled={loading}>
                 Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
+                {editingCompany ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
           </form>
@@ -133,42 +162,45 @@ const Companies: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {companies.map((company, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
-                  <Building2 className="w-5 h-5 text-primary-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{company.nomeFantasia}</h3>
-                  <p className="text-sm text-gray-500">{company.cnpj}</p>
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="secondary"
+        {loading && companies.length === 0 ? (
+          <div className="col-span-3 text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+            <Loader2 className="w-12 h-12 mx-auto text-gray-400 animate-spin" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Carregando empresas...</h3>
+          </div>
+        ) : companies.length === 0 ? (
+          <div className="col-span-3 text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+            <Building2 className="w-12 h-12 mx-auto text-gray-400" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Nenhuma empresa cadastrada</h3>
+            <p className="mt-2 text-sm text-gray-500">Clique em "Nova Empresa" para começar.</p>
+          </div>
+        ) : (
+          companies.map((company) => (
+            <Card key={company._id} className="relative">
+              <div className="absolute top-4 right-4 flex space-x-1">
+                <button
                   onClick={() => handleEdit(company)}
+                  className="p-1 rounded-full hover:bg-gray-100"
+                  disabled={loading}
                 >
-                  <Edit className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => handleDelete(index)}
+                  <Edit className="w-4 h-4 text-gray-500" />
+                </button>
+                <button
+                  onClick={() => handleDelete(company._id || '')}
+                  className="p-1 rounded-full hover:bg-gray-100"
+                  disabled={loading}
                 >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </button>
               </div>
-            </div>
-            
-            <div className="space-y-2 text-sm">
-              <p><span className="font-medium">Razão Social:</span> {company.razaoSocial}</p>
-              <p><span className="font-medium">CNPJ:</span> {company.cnpj}</p>
-            </div>
-          </Card>
-        ))}
+              <h3 className="text-lg font-medium text-gray-900">{company.nomeFantasia}</h3>
+              <p className="text-sm text-gray-500 mt-1">{company.razaoSocial}</p>
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-sm font-medium text-gray-900">CNPJ</p>
+                <p className="text-sm text-gray-600">{company.cnpj}</p>
+              </div>
+            </Card>
+          ))
+        )}
       </div>
 
       {companies.length === 0 && !showForm && (
