@@ -3,13 +3,17 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { Cliente, Empresa } from '../types';
-import { Plus, Edit, Trash2, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Loader2 } from 'lucide-react';
+import ClienteService from '../services/cliente.service';
+import EmpresaService from '../services/empresa.service';
 
 const Customers: React.FC = () => {
   const [customers, setCustomers] = useState<Cliente[]>([]);
   const [companies, setCompanies] = useState<Empresa[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Cliente | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -22,44 +26,67 @@ const Customers: React.FC = () => {
     loadCompanies();
   }, []);
 
-  const loadCustomers = () => {
-    const storedCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
-    setCustomers(storedCustomers);
-  };
-
-  const loadCompanies = () => {
-    const storedCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
-    setCompanies(storedCompanies);
-  };
-
-  const saveCustomers = (updatedCustomers: Cliente[]) => {
-    localStorage.setItem('customers', JSON.stringify(updatedCustomers));
-    setCustomers(updatedCustomers);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingCustomer) {
-      // Como não temos mais IDs, vamos usar o índice para atualizar
-      const index = customers.findIndex(customer => 
-        customer.nome === editingCustomer.nome && 
-        customer.email === editingCustomer.email
-      );
-      
-      if (index !== -1) {
-        const updatedCustomers = [...customers];
-        updatedCustomers[index] = { ...formData };
-        saveCustomers(updatedCustomers);
-      }
-    } else {
-      const newCustomer: Cliente = {
-        ...formData
-      };
-      saveCustomers([...customers, newCustomer]);
+  const loadCustomers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await ClienteService.getAll();
+      setCustomers(data);
+    } catch (err) {
+      console.error('Erro ao carregar clientes:', err);
+      setError('Não foi possível carregar os clientes. Verifique se o servidor está rodando.');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    resetForm();
+  const loadCompanies = async () => {
+    try {
+      const data = await EmpresaService.getAll();
+      setCompanies(data);
+    } catch (err) {
+      console.error('Erro ao carregar empresas:', err);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    // Verificar se o token está disponível
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Você precisa estar autenticado para adicionar ou editar clientes');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      console.log('Dados do formulário:', formData);
+      
+      if (editingCustomer && editingCustomer._id) {
+        // Atualizar cliente existente
+        await ClienteService.update(editingCustomer._id, formData);
+      } else {
+        // Criar novo cliente
+        await ClienteService.create(formData);
+      }
+      
+      // Recarregar a lista de clientes
+      await loadCustomers();
+      resetForm();
+    } catch (err: any) {
+      console.error('Erro ao salvar cliente:', err);
+      // Verificar se o erro tem uma resposta do servidor com mensagem
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(`Erro: ${err.response.data.message}`);
+      } else {
+        setError('Erro ao salvar cliente. Verifique se o servidor está rodando.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -78,37 +105,54 @@ const Customers: React.FC = () => {
       nome: customer.nome,
       email: customer.email,
       telefone: customer.telefone,
-      empresa: customer.empresa
+      empresa: typeof customer.empresa === 'string' ? customer.empresa : (customer.empresa as Empresa)._id || ''
     });
     setEditingCustomer(customer);
     setShowForm(true);
   };
 
-  const handleDelete = (index: number) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
-      const updatedCustomers = [...customers];
-      updatedCustomers.splice(index, 1);
-      saveCustomers(updatedCustomers);
+      try {
+        setLoading(true);
+        setError('');
+        await ClienteService.delete(id);
+        await loadCustomers();
+      } catch (err) {
+        console.error('Erro ao excluir cliente:', err);
+        setError('Erro ao excluir cliente. Verifique se o servidor está rodando.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
-
-  // Não precisamos mais dessa função, pois agora armazenamos o nome da empresa diretamente
 
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Clientes</h1>
-          <p className="text-gray-600 mt-2">Gerencie sua base de clientes</p>
+          <p className="text-gray-600 mt-2">Gerencie seus clientes</p>
         </div>
         <Button
           onClick={() => setShowForm(true)}
           className="flex items-center"
+          disabled={loading}
         >
-          <Plus className="w-4 h-4 mr-2" />
+          {loading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="w-4 h-4 mr-2" />
+          )}
           Novo Cliente
         </Button>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
 
       {showForm && (
         <Card title={editingCustomer ? 'Editar Cliente' : 'Novo Cliente'} className="mb-8">
@@ -144,8 +188,8 @@ const Customers: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="">Selecione uma empresa</option>
-                {companies.map((company, index) => (
-                  <option key={index} value={company.nomeFantasia}>
+                {companies.map((company) => (
+                  <option key={company._id} value={company._id}>
                     {company.nomeFantasia}
                   </option>
                 ))}
@@ -188,7 +232,8 @@ const Customers: React.FC = () => {
                 <Button
                   size="sm"
                   variant="danger"
-                  onClick={() => handleDelete(index)}
+                  onClick={() => handleDelete(customer._id || '')}
+                  disabled={loading}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -198,7 +243,11 @@ const Customers: React.FC = () => {
             <div className="space-y-2 text-sm">
               <p><span className="font-medium">Email:</span> {customer.email}</p>
               <p><span className="font-medium">Telefone:</span> {customer.telefone}</p>
-              <p><span className="font-medium">Empresa:</span> {customer.empresa}</p>
+              <p><span className="font-medium">Empresa:</span> {
+                typeof customer.empresa === 'string' ? 
+                  companies.find(c => c._id === customer.empresa)?.nomeFantasia || customer.empresa : 
+                  (customer.empresa as Empresa).nomeFantasia
+              }</p>
             </div>
           </Card>
         ))}

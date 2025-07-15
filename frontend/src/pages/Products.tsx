@@ -3,13 +3,17 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { Produto, Empresa } from '../types';
-import { Plus, Edit, Trash2, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Loader2 } from 'lucide-react';
+import ProdutoService from '../services/produto.service';
+import EmpresaService from '../services/empresa.service';
 
 const Products: React.FC = () => {
   const [products, setProducts] = useState<Produto[]>([]);
   const [companies, setCompanies] = useState<Empresa[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
@@ -22,52 +26,75 @@ const Products: React.FC = () => {
     loadCompanies();
   }, []);
 
-  const loadProducts = () => {
-    const storedProducts = JSON.parse(localStorage.getItem('products') || '[]');
-    setProducts(storedProducts);
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await ProdutoService.getAll();
+      setProducts(data);
+    } catch (err) {
+      console.error('Erro ao carregar produtos:', err);
+      setError('Não foi possível carregar os produtos. Verifique se o servidor está rodando.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const loadCompanies = () => {
-    const storedCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
-    setCompanies(storedCompanies);
+  const loadCompanies = async () => {
+    try {
+      const data = await EmpresaService.getAll();
+      setCompanies(data);
+    } catch (err) {
+      console.error('Erro ao carregar empresas:', err);
+    }
   };
 
-  const saveProducts = (updatedProducts: Produto[]) => {
-    localStorage.setItem('products', JSON.stringify(updatedProducts));
-    setProducts(updatedProducts);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     
-    if (editingProduct) {
-      // Como não temos mais IDs, vamos usar o índice para atualizar
-      const index = products.findIndex(product => 
-        product.nome === editingProduct.nome && 
-        product.descricao === editingProduct.descricao
-      );
-      
-      if (index !== -1) {
-        const updatedProducts = [...products];
-        updatedProducts[index] = { 
-          nome: formData.nome,
-          descricao: formData.descricao,
-          valor: parseFloat(formData.valor) || 0,
-          empresa: formData.empresa
-        };
-        saveProducts(updatedProducts);
-      }
-    } else {
-      const newProduct: Produto = {
+    // Verificar se o token está disponível
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Você precisa estar autenticado para adicionar ou editar produtos');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const produtoData = {
         nome: formData.nome,
         descricao: formData.descricao,
         valor: parseFloat(formData.valor) || 0,
         empresa: formData.empresa
       };
-      saveProducts([...products, newProduct]);
+      
+      console.log('Token antes da requisição:', token);
+      console.log('Dados do produto:', produtoData);
+      
+      if (editingProduct && editingProduct._id) {
+        // Atualizar produto existente
+        await ProdutoService.update(editingProduct._id, produtoData);
+      } else {
+        // Criar novo produto
+        await ProdutoService.create(produtoData);
+      }
+      
+      // Recarregar a lista de produtos
+      await loadProducts();
+      resetForm();
+    } catch (err: any) {
+      console.error('Erro ao salvar produto:', err);
+      // Verificar se o erro tem uma resposta do servidor com mensagem
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(`Erro: ${err.response.data.message}`);
+      } else {
+        setError('Erro ao salvar produto. Verifique se o servidor está rodando.');
+      }
+    } finally {
+      setLoading(false);
     }
-
-    resetForm();
   };
 
   const resetForm = () => {
@@ -86,37 +113,55 @@ const Products: React.FC = () => {
       nome: product.nome,
       descricao: product.descricao,
       valor: product.valor.toString(),
-      empresa: product.empresa
+      empresa: typeof product.empresa === 'string' ? product.empresa : (product.empresa as Empresa)._id || ''
     });
     setEditingProduct(product);
     setShowForm(true);
   };
 
-  const handleDelete = (index: number) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-      const updatedProducts = [...products];
-      updatedProducts.splice(index, 1);
-      saveProducts(updatedProducts);
+      try {
+        setLoading(true);
+        setError('');
+        await ProdutoService.delete(id);
+        await loadProducts();
+      } catch (err) {
+        console.error('Erro ao excluir produto:', err);
+        setError('Erro ao excluir produto. Verifique se o servidor está rodando.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   // Removida função getCompanyName que não é mais utilizada
-
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Produtos</h1>
-          <p className="text-gray-600 mt-2">Gerencie seu catálogo de produtos</p>
+          <p className="text-gray-600 mt-2">Gerencie seus produtos</p>
         </div>
         <Button
           onClick={() => setShowForm(true)}
           className="flex items-center"
+          disabled={loading}
         >
-          <Plus className="w-4 h-4 mr-2" />
+          {loading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="w-4 h-4 mr-2" />
+          )}
           Novo Produto
         </Button>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
 
       {showForm && (
         <Card title={editingProduct ? 'Editar Produto' : 'Novo Produto'} className="mb-8">
@@ -154,8 +199,8 @@ const Products: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="">Selecione uma empresa</option>
-                {companies.map((company, index) => (
-                  <option key={index} value={company.nomeFantasia}>
+                {companies.map((company) => (
+                  <option key={company._id} value={company._id}>
                     {company.nomeFantasia}
                   </option>
                 ))}
@@ -198,7 +243,8 @@ const Products: React.FC = () => {
                 <Button
                   size="sm"
                   variant="danger"
-                  onClick={() => handleDelete(index)}
+                  onClick={() => handleDelete(product._id || '')}
+                  disabled={loading}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -208,7 +254,11 @@ const Products: React.FC = () => {
             <div className="space-y-2 text-sm mb-4">
               <p className="text-gray-600">{product.descricao}</p>
               <p><span className="font-medium">Valor:</span> R$ {product.valor.toFixed(2)}</p>
-              <p><span className="font-medium">Empresa:</span> {product.empresa}</p>
+              <p><span className="font-medium">Empresa:</span> {
+                typeof product.empresa === 'string' ? 
+                  companies.find(c => c._id === product.empresa)?.nomeFantasia || product.empresa : 
+                  (product.empresa as Empresa).nomeFantasia
+              }</p>
             </div>
           </Card>
         ))}

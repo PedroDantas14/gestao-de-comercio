@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import Card from '../components/Card';
-import { Building2, Package, Users, ShoppingCart, TrendingUp, DollarSign } from 'lucide-react';
-import { Empresa, Produto, Cliente, Pedido, PedidoProduto } from '../types';
+import { Building2, Package, Users, ShoppingCart, DollarSign, Loader, RefreshCw } from 'lucide-react';
+import EmpresaService from '../services/empresa.service';
+import ProdutoService from '../services/produto.service';
+import ClienteService from '../services/cliente.service';
+import PedidoService from '../services/pedido.service';
+import Button from '../components/Button';
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -10,31 +14,47 @@ const Dashboard: React.FC = () => {
     customers: 0,
     orders: 0,
     revenue: 0,
-    pendingOrders: 0,
   });
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const empresas: Empresa[] = JSON.parse(localStorage.getItem('companies') || '[]');
-    const produtos: Produto[] = JSON.parse(localStorage.getItem('products') || '[]');
-    const clientes: Cliente[] = JSON.parse(localStorage.getItem('customers') || '[]');
-    const pedidos: Pedido[] = JSON.parse(localStorage.getItem('orders') || '[]');
-    const pedidosProdutos: PedidoProduto[] = JSON.parse(localStorage.getItem('orderProducts') || '[]');
-
-    // Calcular receita total baseada nos itens de pedido
-    const revenue = pedidosProdutos.reduce((sum, item) => {
-      const produto = produtos.find(p => p.nome === item.produto);
-      return sum + (produto ? produto.valor * item.quantidade : 0);
-    }, 0);
-
-    setStats({
-      companies: empresas.length,
-      products: produtos.length,
-      customers: clientes.length,
-      orders: pedidos.length,
-      revenue,
-      pendingOrders: 0, // Removido o conceito de pedidos pendentes, pois não existe no diagrama
-    });
+    loadDashboardData();
   }, []);
+  
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Buscar dados da API
+      const [empresas, produtos, clientes, pedidos] = await Promise.all([
+        EmpresaService.getAll(),
+        ProdutoService.getAll(),
+        ClienteService.getAll(),
+        PedidoService.getAll()
+      ]);
+      
+      // Calcular receita total baseada nos pedidos
+      const revenue = pedidos.reduce((sum, pedido) => {
+        return sum + (pedido.valorTotal || 0);
+      }, 0);
+      
+      setStats({
+        companies: empresas.length,
+        products: produtos.length,
+        customers: clientes.length,
+        orders: pedidos.length,
+        revenue,
+      });
+    } catch (err) {
+      console.error('Erro ao carregar dados do dashboard:', err);
+      setError('Erro ao carregar dados. Verifique se o servidor está rodando.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const statCards = [
     {
@@ -72,13 +92,6 @@ const Dashboard: React.FC = () => {
       color: 'text-accent-600',
       bgColor: 'bg-accent-100',
     },
-    {
-      title: 'Pedidos Pendentes',
-      value: stats.pendingOrders,
-      icon: TrendingUp,
-      color: 'text-primary-600',
-      bgColor: 'bg-primary-100',
-    },
   ];
 
   return (
@@ -88,64 +101,39 @@ const Dashboard: React.FC = () => {
         <p className="text-gray-600 mt-2">Visão geral do seu negócio</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {statCards.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="transition-transform duration-200 hover:scale-105">
-              <div className="flex items-center">
-                <div className={`w-12 h-12 ${stat.bgColor} rounded-lg flex items-center justify-center mr-4`}>
-                  <Icon className={`w-6 h-6 ${stat.color}`} />
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader className="w-8 h-8 animate-spin text-accent-600" />
+          <span className="ml-2 text-gray-600">Carregando dados...</span>
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700 mb-4">
+          <p>{error}</p>
+          <Button onClick={loadDashboardData} className="mt-2 flex items-center" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Tentar novamente
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {statCards.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <Card key={index} className="transition-transform duration-200 hover:scale-105">
+                <div className="flex items-center">
+                  <div className={`w-12 h-12 ${stat.bgColor} rounded-lg flex items-center justify-center mr-4`}>
+                    <Icon className={`w-6 h-6 ${stat.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Atividade Recente">
-          <div className="space-y-4">
-            <div className="flex items-center p-3 bg-primary-50 rounded-lg">
-              <div className="w-2 h-2 bg-primary-500 rounded-full mr-3"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Sistema iniciado</p>
-                <p className="text-xs text-gray-500">Bem-vindo ao CommerceApp</p>
-              </div>
-            </div>
-            <div className="flex items-center p-3 bg-accent-50 rounded-lg">
-              <div className="w-2 h-2 bg-accent-500 rounded-full mr-3"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Dados carregados</p>
-                <p className="text-xs text-gray-500">Informações atualizadas</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Status do Sistema">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-accent-50 rounded-lg">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-accent-500 rounded-full mr-3"></div>
-                <span className="text-sm font-medium text-gray-900">Sistema Online</span>
-              </div>
-              <span className="text-xs text-accent-600 font-medium">Operacional</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-primary-500 rounded-full mr-3"></div>
-                <span className="text-sm font-medium text-gray-900">Base de Dados</span>
-              </div>
-              <span className="text-xs text-primary-600 font-medium">Conectado</span>
-            </div>
-          </div>
-        </Card>
-      </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

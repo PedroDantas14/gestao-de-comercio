@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
@@ -10,8 +10,15 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, currentUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Redirecionar se já estiver autenticado
+  useEffect(() => {
+    if (currentUser && !authLoading) {
+      navigate('/dashboard');
+    }
+  }, [currentUser, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +33,8 @@ const Login: React.FC = () => {
         setError('Email ou senha inválidos');
       }
     } catch (err) {
-      setError('Erro ao fazer login');
+      console.error('Erro ao fazer login:', err);
+      setError('Erro ao fazer login. Verifique se o servidor está rodando.');
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
@@ -12,8 +12,15 @@ const Register: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, currentUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Redirecionar se já estiver autenticado
+  useEffect(() => {
+    if (currentUser && !authLoading) {
+      navigate('/dashboard');
+    }
+  }, [currentUser, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,10 +43,16 @@ const Register: React.FC = () => {
       if (success) {
         navigate('/dashboard');
       } else {
-        setError('Email já está em uso');
+        setError('Email já está em uso ou ocorreu um erro no servidor');
       }
-    } catch (err) {
-      setError('Erro ao criar conta');
+    } catch (err: any) {
+      console.error('Erro ao criar conta:', err);
+      // Verifica se o erro tem uma resposta do servidor com mensagem
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(`Erro: ${err.response.data.message}`);
+      } else {
+        setError('Erro ao criar conta. Verifique se o servidor está rodando.');
+      }
     } finally {
       setLoading(false);
     }

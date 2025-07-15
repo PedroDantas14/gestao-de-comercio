@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Usuario, AuthContextType } from '../types';
+import AuthService, { RegisterData, LoginData } from '../services/auth.service';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -17,69 +18,50 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<Usuario | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+    // Verificar se há um usuário armazenado no localStorage
+    const user = AuthService.getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
     }
+    setLoading(false);
   }, []);
 
   const register = async (nome: string, email: string, senha: string): Promise<boolean> => {
     try {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const data: RegisterData = { nome, email, senha };
+      const response = await AuthService.register(data);
       
-      if (users.find((user: Usuario) => user.email === email)) {
-        return false; // Email já existe
-      }
-
-      const newUser: Usuario = {
-        nome,
-        email,
-        senha
-      };
-
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      
-      // Criando uma cópia sem a senha para armazenar
-      const userForStorage = {
-        nome: newUser.nome,
-        email: newUser.email
-      };
-      setCurrentUser(userForStorage as Usuario);
-      localStorage.setItem('currentUser', JSON.stringify(userForStorage));
-      
+      setCurrentUser(response.user);
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Erro no registro:', error);
+      // Verifica se o erro é do tipo AxiosError e tem uma resposta do servidor
+      if (error.response && error.response.data) {
+        console.error('Mensagem do servidor:', error.response.data.message);
+      }
       return false;
     }
   };
 
   const login = async (email: string, senha: string): Promise<boolean> => {
     try {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = users.find((u: Usuario) => u.email === email && u.senha === senha);
+      const data: LoginData = { email, senha };
+      const response = await AuthService.login(data);
       
-      if (user) {
-        // Criando uma cópia sem a senha para armazenar
-        const userForStorage = {
-          nome: user.nome,
-          email: user.email
-        };
-        setCurrentUser(userForStorage as Usuario);
-        localStorage.setItem('currentUser', JSON.stringify(userForStorage));
-        return true;
-      }
-      return false;
+      setCurrentUser(response.user);
+      return true;
     } catch (error) {
+      console.error('Erro no login:', error);
       return false;
     }
   };
 
   const logout = () => {
+    AuthService.logout();
     setCurrentUser(null);
-    localStorage.removeItem('currentUser');
   };
 
   const value: AuthContextType = {
@@ -87,6 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
+    loading
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

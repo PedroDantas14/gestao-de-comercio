@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import { Cliente, Produto, Pedido, PedidoProduto, Empresa } from '../types';
-import { Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { Cliente, Produto, PedidoProduto, Empresa } from '../types';
+import { Plus, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
+import ClienteService from '../services/cliente.service';
+import ProdutoService from '../services/produto.service';
+import EmpresaService from '../services/empresa.service';
+import PedidoService from '../services/pedido.service';
 
 const NewOrder: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +21,8 @@ const NewOrder: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [observation, setObservation] = useState('');
   const [orderNumber, setOrderNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadCustomers();
@@ -25,19 +31,39 @@ const NewOrder: React.FC = () => {
     generateOrderNumber();
   }, []);
 
-  const loadCustomers = () => {
-    const storedCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
-    setCustomers(storedCustomers);
+  const loadCustomers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await ClienteService.getAll();
+      setCustomers(data);
+      console.log('Clientes carregados:', data);
+    } catch (err) {
+      console.error('Erro ao carregar clientes:', err);
+      setError('Não foi possível carregar os clientes. Verifique se o servidor está rodando.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const loadProducts = () => {
-    const storedProducts = JSON.parse(localStorage.getItem('products') || '[]');
-    setProducts(storedProducts);
+  const loadProducts = async () => {
+    try {
+      const data = await ProdutoService.getAll();
+      setProducts(data);
+      console.log('Produtos carregados:', data);
+    } catch (err) {
+      console.error('Erro ao carregar produtos:', err);
+    }
   };
   
-  const loadCompanies = () => {
-    const storedCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
-    setCompanies(storedCompanies);
+  const loadCompanies = async () => {
+    try {
+      const data = await EmpresaService.getAll();
+      setCompanies(data);
+      console.log('Empresas carregadas:', data);
+    } catch (err) {
+      console.error('Erro ao carregar empresas:', err);
+    }
   };
   
   const generateOrderNumber = () => {
@@ -50,7 +76,7 @@ const NewOrder: React.FC = () => {
   const addProduct = () => {
     if (!selectedProduct || quantity <= 0) return;
 
-    const product = products.find(p => p.nome === selectedProduct);
+    const product = products.find(p => p._id === selectedProduct);
     if (!product) return;
 
     const existingItem = orderItems.find(item => item.produto === selectedProduct);
@@ -65,10 +91,15 @@ const NewOrder: React.FC = () => {
           : item
       ));
     } else {
+      // Encontrar o produto selecionado para obter seu valor
+      const selectedProductObj = products.find(p => p._id === selectedProduct);
+      if (!selectedProductObj) return;
+      
       const newItem: PedidoProduto = {
         pedido: orderNumber,
-        produto: product.nome,
-        quantidade: quantity
+        produto: selectedProduct, // Usar o ID do produto
+        quantidade: quantity,
+        valorUnitario: selectedProductObj.valor // Incluir o valor unitário do produto
       };
       setOrderItems([...orderItems, newItem]);
     }
@@ -77,18 +108,18 @@ const NewOrder: React.FC = () => {
     setQuantity(1);
   };
 
-  const removeProduct = (productName: string) => {
-    setOrderItems(orderItems.filter(item => item.produto !== productName));
+  const removeProduct = (productId: string) => {
+    setOrderItems(orderItems.filter(item => item.produto !== productId));
   };
 
   const calculateTotal = () => {
     return orderItems.reduce((sum, item) => {
-      const product = products.find(p => p.nome === item.produto);
+      const product = products.find(p => p._id === item.produto);
       return sum + (product ? product.valor * item.quantidade : 0);
     }, 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedCustomer || !selectedCompany || orderItems.length === 0) {
@@ -96,30 +127,54 @@ const NewOrder: React.FC = () => {
       return;
     }
 
-    const customer = customers.find(c => c.nome === selectedCustomer);
-    if (!customer) return;
-
-    // Criar novo pedido conforme o diagrama
-    const newOrder: Pedido = {
-      numero: orderNumber,
-      cliente: selectedCustomer,
-      empresa: selectedCompany,
-      observacao: observation,
-      data: new Date().toISOString()
-    };
-
-    // Salvar pedido
-    const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-    orders.push(newOrder);
-    localStorage.setItem('orders', JSON.stringify(orders));
+    // Encontrar os objetos completos de cliente e empresa pelos IDs selecionados
+    const customer = customers.find(c => c._id === selectedCustomer);
+    const company = companies.find(c => c._id === selectedCompany);
     
-    // Salvar produtos do pedido
-    const orderProductsStorage = JSON.parse(localStorage.getItem('orderProducts') || '[]');
-    orderProductsStorage.push(...orderItems);
-    localStorage.setItem('orderProducts', JSON.stringify(orderProductsStorage));
+    if (!customer || !company) {
+      alert('Cliente ou empresa não encontrados');
+      return;
+    }
 
-    alert('Pedido criado com sucesso!');
-    navigate('/orders');
+    try {
+      setLoading(true);
+      
+      // Calcular o valor total do pedido
+      const valorTotal = calculateTotal();
+      
+      // Criar novo pedido com os IDs corretos
+      const newOrder = {
+        numero: orderNumber,
+        cliente: customer._id as string, // Usar o ID do cliente como string
+        empresa: company._id as string, // Usar o ID da empresa como string
+        observacao: observation,
+        data: new Date().toISOString(),
+        valorTotal: valorTotal, // Incluir o valor total do pedido
+        produtos: orderItems.map(item => {
+          // Encontrar o produto para garantir que temos o valor unitário
+          const product = products.find(p => p._id === item.produto);
+          return {
+            pedido: orderNumber,
+            produto: item.produto as string, // Garantir que seja string
+            quantidade: item.quantidade,
+            valorUnitario: item.valorUnitario || (product ? product.valor : 0) // Usar o valor unitário do item ou do produto
+          };
+        })
+      };
+
+      console.log('Enviando pedido:', newOrder);
+      
+      // Enviar pedido para a API
+      await PedidoService.create(newOrder);
+      
+      alert('Pedido criado com sucesso!');
+      navigate('/orders');
+    } catch (error) {
+      console.error('Erro ao criar pedido:', error);
+      alert(`Erro ao criar pedido: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -129,7 +184,22 @@ const NewOrder: React.FC = () => {
         <p className="text-gray-600 mt-2">Crie um novo pedido para seus clientes</p>
       </div>
       
-      {customers.length === 0 ? (
+      {loading ? (
+        <Card className="text-center py-12">
+          <div className="flex justify-center items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+            <p>Carregando clientes...</p>
+          </div>
+        </Card>
+      ) : error ? (
+        <Card className="text-center py-12">
+          <h3 className="text-lg font-medium text-red-600 mb-2">Erro ao carregar dados</h3>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <Button onClick={() => loadCustomers()}>
+            Tentar novamente
+          </Button>
+        </Card>
+      ) : customers.length === 0 ? (
         <Card className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum cliente cadastrado</h3>
           <p className="text-gray-500 mb-4">Você precisa cadastrar clientes para criar pedidos</p>
@@ -173,9 +243,9 @@ const NewOrder: React.FC = () => {
                     required
                   >
                     <option value="">Selecione um cliente</option>
-                    {customers.map((customer, index) => (
-                      <option key={index} value={customer.nome}>
-                        {customer.nome}
+                    {customers.map((customer) => (
+                      <option key={customer._id} value={customer._id}>
+                        {customer.nome} - {customer.email}
                       </option>
                     ))}
                   </select>
@@ -192,9 +262,9 @@ const NewOrder: React.FC = () => {
                     required
                   >
                     <option value="">Selecione uma empresa</option>
-                    {companies.map((company, index) => (
-                      <option key={index} value={company.nomeFantasia}>
-                        {company.nomeFantasia}
+                    {companies.map((company) => (
+                      <option key={company._id} value={company._id}>
+                        {company.nomeFantasia} - {company.razaoSocial}
                       </option>
                     ))}
                   </select>
@@ -224,8 +294,8 @@ const NewOrder: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       >
                         <option value="">Selecione um produto</option>
-                        {products.map((product, index) => (
-                          <option key={index} value={product.nome}>
+                        {products.map((product) => (
+                          <option key={product._id} value={product._id}>
                             {product.nome} - R$ {product.valor.toFixed(2)}
                           </option>
                         ))}
@@ -249,48 +319,46 @@ const NewOrder: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-                
-                {orderItems.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-medium text-gray-900 mb-3">Itens do Pedido</h3>
-                    <div className="space-y-2">
-                      {orderItems.map((item, index) => {
-                        const product = products.find(p => p.nome === item.produto);
-                        const price = product ? product.valor : 0;
-                        const subtotal = price * item.quantidade;
-                        
-                        return (
-                          <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <p className="font-medium text-gray-900">{item.produto}</p>
-                              <p className="text-sm text-gray-500">
-                                {item.quantidade}x R$ {price.toFixed(2)}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <p className="font-medium text-gray-900">
-                                R$ {subtotal.toFixed(2)}
-                              </p>
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                type="button"
-                                onClick={() => removeProduct(item.produto)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
+              
+              {orderItems.length > 0 && (
+                <div className="mt-8">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Itens do Pedido</h3>
+                  
+                  <div className="space-y-3">
+                    {orderItems.map((item, index) => {
+                      const product = products.find(p => p._id === item.produto);
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <h4 className="font-medium">{product?.nome || 'Produto não encontrado'}</h4>
+                            <p className="text-sm text-gray-500">
+                              {item.quantidade} x R$ {product?.valor?.toFixed(2) || '0.00'}
+                            </p>
                           </div>
-                        );
-                      })}
-                    </div>
-                    <div className="flex justify-end mt-4">
-                      <div className="bg-gray-100 px-4 py-2 rounded-lg">
-                        <p className="text-lg font-semibold">Total: R$ {calculateTotal().toFixed(2)}</p>
-                      </div>
+                          <div className="flex items-center">
+                            <p className="font-medium mr-4">
+                              R$ {((product?.valor || 0) * item.quantidade).toFixed(2)}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => removeProduct(String(item.produto))}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="flex justify-end mt-4">
+                    <div className="bg-gray-100 px-4 py-2 rounded-lg">
+                      <p className="text-lg font-semibold">Total: R$ {calculateTotal().toFixed(2)}</p>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
                 
                 <div className="flex gap-2 mt-6">
                   <Button type="submit" className="flex items-center">
@@ -320,14 +388,18 @@ const NewOrder: React.FC = () => {
                 {selectedCustomer && (
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Cliente</h3>
-                    <p className="font-medium">{selectedCustomer}</p>
+                    <p className="font-medium">
+                      {customers.find(c => c._id === selectedCustomer)?.nome || selectedCustomer}
+                    </p>
                   </div>
                 )}
                 
                 {selectedCompany && (
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Empresa</h3>
-                    <p className="font-medium">{selectedCompany}</p>
+                    <p className="font-medium">
+                      {companies.find(c => c._id === selectedCompany)?.nomeFantasia || selectedCompany}
+                    </p>
                   </div>
                 )}
                 
